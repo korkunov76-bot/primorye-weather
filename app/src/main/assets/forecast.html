@@ -20,7 +20,7 @@ h2{font:500 13px Onest,sans-serif;color:var(--mute);margin:28px 0 10px}
 .meta{display:grid;grid-template-columns:repeat(2,auto);gap:4px 22px;color:var(--mute);font-size:14px;margin-top:8px}
 .meta b{color:var(--fog);font-weight:500}
 .temp{position:relative;display:inline-block;z-index:1}
-.bgico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:clamp(140px,34vw,230px);opacity:.32;mix-blend-mode:screen;z-index:0;pointer-events:none;filter:saturate(.9)}
+.bgico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:clamp(150px,36vw,240px);height:clamp(150px,36vw,240px);opacity:.55;z-index:0;pointer-events:none}.bgico svg{width:100%;height:100%;display:block}
 .days3{display:flex;flex-direction:column}
 .d3t{font-size:13px;color:var(--mute);margin:14px 0 3px;text-align:center}
 .d3t b{color:var(--fog);font-weight:500;font-size:15px}
@@ -31,12 +31,11 @@ h2{font:500 13px Onest,sans-serif;color:var(--mute);margin:28px 0 10px}
 .scroll{overflow:visible}
 table{border-collapse:collapse;width:100%;table-layout:fixed;font-variant-numeric:tabular-nums}
 th,td{padding:8px 3px;text-align:right;border-bottom:1px solid var(--line);font-size:13px}
-th:nth-child(1){width:21%}th:nth-child(2){width:11%}th:nth-child(3){width:22%}
+#win th:nth-child(1){width:21%}#win th:nth-child(2){width:11%}#win th:nth-child(3){width:22%}
 th{color:var(--mute);font-weight:400;font-size:12px}
 td:first-child,th:first-child{text-align:left}
-td:nth-child(2),th:nth-child(2){text-align:center}
-td:nth-child(3),th:nth-child(3){padding-right:22px}
-td:nth-child(5),th:nth-child(5){padding-right:22px}
+#win td:nth-child(2),#win th:nth-child(2){text-align:center}
+#win td:nth-child(3),#win th:nth-child(3){padding-right:22px}
 td.e{font-size:18px}
 .gust{font-weight:700}
 .d{display:grid;grid-template-columns:90px 36px 1fr 70px 110px;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -90,13 +89,23 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 #back{position:fixed;top:12px;left:12px;z-index:99;background:var(--buoy);color:#1a0d05;border:0;border-radius:14px;padding:12px 20px;font:700 30px/1 Onest,sans-serif;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.45)}
 
 @media(max-width:620px){.d{grid-template-columns:70px 30px 1fr 90px}.d .t,.big{display:none}}
+
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.alert{margin-top:10px;padding:10px 14px;border-radius:12px;background:rgba(255,176,46,.16);border:1px solid #ffb02e;color:#ffd9a0;font-size:14px;font-weight:500}
+.alert.storm{background:rgba(255,90,77,.16);border-color:#ff5a4d;color:#ffc4be}
+.setrow{margin:14px 0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.setrow label{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.setrow select{background:#0a1a24;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:14px Onest,sans-serif}
+.setrow input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
+#sdlg .tabs{margin-bottom:0}
 </style>
 </head>
 <body>
-<div class="top"><h1 id="placename">Владивосток</h1>
-<button class="camb" id="notif">🔔 Уведомления</button><button class="camb" id="camb">Камеры онлайн</button></div>
+<div class="top"><h1 id="placename">Владивосток</h1></div>
+<div class="btns"><button class="camb" id="camb">📷 Камеры онлайн</button><button class="camb" id="setb">⚙️ Настройки приложения</button><button class="camb" id="sysb">📱 Системные настройки</button></div>
 <button id="back" onclick="location.href=location.pathname" title="К прогнозу Владивостока" hidden>←</button>
 <div id="err"></div>
+<div id="alerts"></div>
 <section class="now">
   <div class="temp"><div class="bgico" id="bg"></div><span id="t">–</span><sup>°C</sup></div>
   <div class="locs">
@@ -106,14 +115,17 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div><div class="desc" id="desc">Загрузка…</div>
     <div class="meta"><span>Ощущается <b id="fl">–</b></span><span>Ветер <b id="wd">–</b></span>
     <span>Влажность <b id="hm">–</b></span><span>Давление <b id="pr">–</b></span>
+    <span>Восход <b id="sr">–</b></span><span>Закат <b id="ss">–</b></span>
     </div></div>
 </section>
 
 <h2>Сутки по окнам, сейчас → +24 ч</h2><div class="scroll"><table id="win"></table></div>
-<div class="note">мм — осадки, «осадки, %» — вероятность осадков в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
+<div class="note">мм — осадки в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
 <h2>Прогноз на 3 дня, каждые 3 часа</h2><div class="days3" id="hours"></div>
 <h2>Прогноз на неделю</h2><div id="days"></div>
-<h2>Море</h2><div class="sea" id="sea">–</div>
+<h2>Море и прогноз для моряков</h2><div id="salert"></div><div class="sea" id="sea">–</div>
+<div class="scroll"><table id="wavet"></table></div>
+<div class="note">Волна — высота значительной волны (модель Open-Meteo Marine, шаг сетки около 25 км), «откуда» — направление, откуда идёт волна. Температура воды — по той же модели; у берега и в бухтах возможны отличия. Цвет высоты волны: зелёный до 1,5 м, жёлтый от 1,5 м, красный от 2,5 м.</div>
 <h2>Карта ветра</h2>
 <div id="map"><iframe id="wf" title="Карта ветра Windy" allowfullscreen></iframe></div>
 <div class="note">Модель ECMWF, поверхность: цвет — скорость ветра, белые штрихи — направление. Анимация прогноза на неделю — кнопка ▶ в левом нижнем углу карты.</div>
@@ -124,6 +136,20 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="tabs" id="tabs"></div>
   <div class="view" id="view"></div>
   <div class="note" id="cnote"></div>
+</dialog>
+
+<dialog id="sdlg">
+  <div class="dh"><b>Настройки приложения</b><button id="sx" aria-label="Закрыть">✕</button></div>
+  <div class="setrow"><span>Источник прогноза</span>
+    <div class="tabs"><button data-s="om" aria-pressed="false">Open-Meteo (нужен VPN)</button><button data-s="met" aria-pressed="false">MET Norway (без VPN)</button></div></div>
+  <div class="setrow"><label><input type="checkbox" id="s_al"> Предупреждения о сильном ветре, грозе и волнении</label>
+    <label>Порог ветра (порывы), м/с <select id="s_wind"><option>10</option><option>12</option><option>15</option><option>18</option><option>20</option><option>25</option></select></label></div>
+  <div class="setrow" id="s_sys"><span id="s_notif"></span>
+    <div class="tabs"><button id="s_nbtn">Уведомления…</button><button id="s_abtn">Точные будильники…</button></div></div>
+  <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
+  <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
+  <div class="note" id="s_note"></div>
+  <div class="note">Версия страницы: 18 · 09.10.2026</div>
 </dialog>
 
 <script>
@@ -145,11 +171,9 @@ document.getElementById('placename').textContent=PLACE.n;
 if(Q!=='vladivostok')document.getElementById('back').hidden=false;
 document.querySelectorAll('.locs button').forEach(b=>b.onclick=()=>{location.search='loc='+b.dataset.loc});
 
-// кнопка настроек уведомлений (в браузере без APK скрыта)
-if(window.AndroidBridge){
-  $('notif').onclick=()=>AndroidBridge.openNotifSettings();
-  try{ if(!AndroidBridge.notifEnabled()) $('notif').textContent='🔕 Уведомления выкл.' }catch(e){}
-} else { $('notif').style.display='none' }
+// кнопка системных настроек (в браузере без APK скрыта)
+if(window.AndroidBridge&&AndroidBridge.openAppSettings){ $('sysb').onclick=()=>{try{AndroidBridge.openAppSettings()}catch(e){}} }
+else { $('sysb').style.display='none' }
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const WMO={0:['☀️','Ясно'],1:['🌤️','Малооблачно'],2:['⛅','Переменная облачность'],3:['☁️','Пасмурно'],45:['🌫️','Туман'],48:['🌫️','Изморозь'],
 51:['🌦️','Морось'],53:['🌦️','Морось'],55:['🌧️','Сильная морось'],56:['🌧️','Ледяная морось'],57:['🌧️','Ледяная морось'],
@@ -196,7 +220,7 @@ function getJson(url){
   return fetch(url).then(async r=>({ok:r.ok,status:r.status,json:await r.json().catch(()=>null)}));
 }
 
-async function loadWeather(){
+async function loadOpenMeteo(){
   const base='https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&wind_speed_unit=ms&forecast_days=7'+
   '&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m,pressure_msl,weather_code'+
   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max';
@@ -220,18 +244,154 @@ async function loadWeather(){
   const dtime=js[0].daily.time, D={time:dtime};
   DKEYS.forEach(k=>{D[k]=dtime.map((_,i)=>cons(js.map(j=>j.daily[k]&&j.daily[k][i])))});
   D.weather_code=dtime.map((_,i)=>wmode(js.map(j=>j.daily.weather_code&&j.daily.weather_code[i])));
-  // "сейчас" = консенсус на текущем часу по времени Владивостока
-  const nowStr=new Intl.DateTimeFormat('sv-SE',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).replace(' ','T');
+  return {H,D};
+}
+
+// ---- альтернативный источник: MET Norway (api.met.no), работает без VPN ----
+function metCode(sym){
+  if(!sym)return null;
+  const b=sym.replace(/_(day|night|polartwilight)$/,'');
+  if(/thunder/.test(b))return 95;
+  const m={clearsky:0,fair:1,partlycloudy:2,cloudy:3,fog:45,lightrain:61,lightrainshowers:80,rain:63,rainshowers:80,heavyrain:65,heavyrainshowers:82,
+    lightsleet:67,lightsleetshowers:67,sleet:67,sleetshowers:67,heavysleet:67,heavysleetshowers:67,
+    lightsnow:71,lightsnowshowers:85,snow:73,snowshowers:85,heavysnow:75,heavysnowshowers:86};
+  return m[b]!==undefined?m[b]:3;
+}
+const localHour=ms=>{const d=new Date(ms+10*3600e3);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())+'T'+p2(d.getUTCHours())+':00'};
+async function loadMet(){
+  const o=await getJson('https://api.met.no/weatherapi/locationforecast/2.0/complete?lat='+LAT.toFixed(4)+'&lon='+LON.toFixed(4));
+  const ts=o.json&&o.json.properties&&o.json.properties.timeseries;
+  if(!o.ok||!ts||ts.length<2)throw new Error('MET Norway: HTTP '+o.status);
+  const P=ts.map(e=>{
+    const i=e.data.instant.details, n1=e.data.next_1_hours, n6=e.data.next_6_hours, n12=e.data.next_12_hours;
+    const dt=n=>(n&&n.details)||{}, sm=n=>n&&n.summary&&n.summary.symbol_code;
+    return {ms:Date.parse(e.time),T:i.air_temperature,RH:i.relative_humidity,PR:i.air_pressure_at_sea_level,WD:i.wind_from_direction,WS:i.wind_speed,G:i.wind_speed_of_gust,
+      s1:sm(n1),p1:dt(n1).precipitation_amount,q1:dt(n1).probability_of_precipitation,
+      s6:sm(n6),p6:dt(n6).precipitation_amount,q6:dt(n6).probability_of_precipitation,s12:sm(n12)};
+  });
+  const lerp=(a,b,f)=>(a==null||b==null)?(a!=null?a:b):a+(b-a)*f;
+  const H={time:[],temperature_2m:[],apparent_temperature:[],precipitation:[],precipitation_probability:[],wind_speed_10m:[],wind_gusts_10m:[],relative_humidity_2m:[],pressure_msl:[],wind_direction_10m:[],weather_code:[]};
+  const t0=Math.floor(P[0].ms/3600e3)*3600e3, tEnd=Math.min(P[P.length-1].ms,t0+8*24*3600e3);
+  let j=0,lastCode=3;
+  for(let t=t0;t<=tEnd;t+=3600e3){
+    while(j<P.length-2&&P[j+1].ms<=t)j++;
+    const a=P[j], b=P[j+1]||a;
+    const gap=Math.max((b.ms-a.ms)/3600e3,1), f=Math.min(Math.max((t-a.ms)/(gap*3600e3),0),1);
+    let sym,pr,q;
+    if(gap<=1){sym=a.s1||a.s6;pr=a.p1!=null?a.p1:0;q=a.q1!=null?a.q1:a.q6}
+    else{sym=a.s6||a.s12||a.s1;pr=a.p6!=null?a.p6/Math.min(gap,6):0;q=a.q6}
+    const code=metCode(sym);if(code!=null)lastCode=code;
+    const T=lerp(a.T,b.T,f), RH=lerp(a.RH,b.RH,f), WS=lerp(a.WS,b.WS,f);
+    const e=RH/100*6.105*Math.exp(17.27*T/(237.7+T));
+    H.time.push(localHour(t));
+    H.temperature_2m.push(T);
+    H.apparent_temperature.push(T+0.33*e-0.70*WS-4.00);
+    H.precipitation.push(pr);
+    H.precipitation_probability.push(q!=null?q:null);
+    H.wind_speed_10m.push(WS);
+    H.wind_gusts_10m.push(lerp(a.G,b.G,f));
+    H.relative_humidity_2m.push(RH);
+    H.pressure_msl.push(lerp(a.PR,b.PR,f));
+    H.wind_direction_10m.push(a.WD);
+    H.weather_code.push(lastCode);
+  }
+  const days={},order=[];
+  H.time.forEach((tm,i)=>{const d=tm.slice(0,10);if(!days[d]){days[d]=[];order.push(d)}days[d].push(i)});
+  const dl=order.slice(0,7);
+  const D={time:dl,temperature_2m_max:[],temperature_2m_min:[],precipitation_sum:[],precipitation_probability_max:[],wind_gusts_10m_max:[],weather_code:[]};
+  D.noGust=H.wind_gusts_10m.every(v=>v==null);
+  dl.forEach(d=>{
+    const ix=days[d], g=k=>ix.map(i=>H[k][i]).filter(v=>v!=null);
+    const T=g('temperature_2m'),G=g('wind_gusts_10m'),WS=g('wind_speed_10m'),Q=g('precipitation_probability');
+    D.temperature_2m_max.push(Math.max(...T));
+    D.temperature_2m_min.push(Math.min(...T));
+    D.precipitation_sum.push(g('precipitation').reduce((x,y)=>x+y,0));
+    D.precipitation_probability_max.push(Q.length?Math.max(...Q):null);
+    D.wind_gusts_10m_max.push(G.length?Math.max(...G):(WS.length?Math.max(...WS):0));
+    const day=ix.filter(i=>{const h=+H.time[i].slice(11,13);return h>=8&&h<=20});
+    D.weather_code.push(wmode((day.length?day:ix).map(i=>H.weather_code[i])));
+  });
+  return {H,D};
+}
+
+// ---- настройки, кеш, время ----
+const CFG_DEFAULT={alerts:true,wind:15};
+function getCfg(){try{return Object.assign({},CFG_DEFAULT,JSON.parse(localStorage.getItem('cfg')||'{}'))}catch(e){return Object.assign({},CFG_DEFAULT)}}
+function setCfg(o){try{localStorage.setItem('cfg',JSON.stringify(Object.assign(getCfg(),o)))}catch(e){}}
+function cacheGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
+function cachePut(k,o){try{localStorage.setItem(k,JSON.stringify(o))}catch(e){}}
+const ago=ms=>{const m=Math.round((Date.now()-ms)/60000);return m<1?'только что':m<60?m+' мин назад':Math.round(m/60)+' ч назад'};
+const nowLocal=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).replace(' ','T');
+
+// ---- восход и закат (астрономический расчёт, время Владивостока UTC+10) ----
+function sunTimes(ymd){
+  const [y,m,d]=ymd.split('-').map(Number), rad=Math.PI/180;
+  const jd=Date.UTC(y,m-1,d,12)/86400000+2440587.5;
+  const n=Math.ceil(jd-2451545.0+0.0008);
+  const Js=n-LON/360;
+  const M=(357.5291+0.98560028*Js)%360;
+  const C=1.9148*Math.sin(M*rad)+0.02*Math.sin(2*M*rad)+0.0003*Math.sin(3*M*rad);
+  const lam=(M+C+180+102.9372)%360;
+  const Jt=2451545.0+Js+0.0053*Math.sin(M*rad)-0.0069*Math.sin(2*lam*rad);
+  const dec=Math.asin(Math.sin(lam*rad)*Math.sin(23.4397*rad));
+  const cosH=(Math.sin(-0.833*rad)-Math.sin(LAT*rad)*Math.sin(dec))/(Math.cos(LAT*rad)*Math.cos(dec));
+  if(cosH>1||cosH<-1)return null;
+  const Hh=Math.acos(cosH)/rad;
+  const f=j=>{const t=new Date((j-2440587.5)*86400000+10*3600e3);return p2(t.getUTCHours())+':'+p2(t.getUTCMinutes())};
+  return {rise:f(Jt-Hh/360),set:f(Jt+Hh/360)};
+}
+
+// ---- фоновый значок погоды (SVG) ----
+const SVGDEFS='<defs><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#ff8f3f"/></linearGradient><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f7f9"/><stop offset="1" stop-color="#9db8c4"/></linearGradient><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c9d1"/><stop offset="1" stop-color="#6f8795"/></linearGradient></defs>';
+const SUN_SVG='<circle cx="50" cy="50" r="30" fill="url(#gs)" opacity=".22"/>'+[0,45,90,135,180,225,270,315].map(a=>'<line x1="50" y1="14" x2="50" y2="23" stroke="#ffc15e" stroke-width="3.5" stroke-linecap="round" transform="rotate('+a+' 50 50)"/>').join('')+'<circle cx="50" cy="50" r="17" fill="url(#gs)"/>';
+const CLOUD_SVG=(dx,dy,g)=>'<path transform="translate('+dx+' '+dy+')" fill="url(#'+(g||'gc')+')" d="M26 70a13 13 0 0 1 0-26a18 18 0 0 1 34-6a15 15 0 0 1 4 32z"/>';
+function bgIcon(c){
+  let b;
+  if(c===0||c===1)b=SUN_SVG;
+  else if(c===2)b='<g transform="translate(14 -12) scale(.82)">'+SUN_SVG+'</g>'+CLOUD_SVG(0,8);
+  else if(c===3)b=CLOUD_SVG(14,-12,'gd')+CLOUD_SVG(-4,6);
+  else if(c===45||c===48)b=CLOUD_SVG(0,-10,'gd')+'<g stroke="#bcd0d8" stroke-width="4" stroke-linecap="round"><line x1="20" y1="70" x2="80" y2="70"/><line x1="28" y1="80" x2="88" y2="80"/><line x1="20" y1="90" x2="72" y2="90"/></g>';
+  else if(c>=95)b=CLOUD_SVG(0,-8,'gd')+'<path d="M53 62L41 80H52L45 96L64 74H54Z" fill="#ffd36b"/>';
+  else if((c>=71&&c<=77)||c===85||c===86)b=CLOUD_SVG(0,-8)+'<g fill="#e6eef0"><circle cx="34" cy="80" r="3.5"/><circle cx="50" cy="88" r="3.5"/><circle cx="66" cy="80" r="3.5"/><circle cx="42" cy="95" r="3"/><circle cx="58" cy="96" r="3"/></g>';
+  else b=CLOUD_SVG(0,-8,'gd')+'<g stroke="#7fd1c4" stroke-width="4" stroke-linecap="round"><line x1="34" y1="78" x2="30" y2="90"/><line x1="48" y1="78" x2="44" y2="90"/><line x1="62" y1="78" x2="58" y2="90"/></g>';
+  return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">'+SVGDEFS+b+'</svg>';
+}
+
+// ---- предупреждения ----
+function buildAlerts(H,s0,d0){
+  const cfg=getCfg(); if(!cfg.alerts)return '';
+  const lim=Number(cfg.wind)||15, end=Math.min(H.time.length,s0+36);
+  let gi=-1,gv=-1,th=-1;
+  for(let i=s0;i<end;i++){
+    const v=H.wind_gusts_10m[i]!=null?H.wind_gusts_10m[i]:H.wind_speed_10m[i];
+    if(v!=null&&v>gv){gv=v;gi=i}
+    if(th<0&&H.weather_code[i]>=95)th=i;
+  }
+  const when=i=>{const t=H.time[i];return (t.slice(0,10)===d0?'сегодня':wdOf(t))+' '+hmOf(t)};
+  const out=[];
+  if(gi>=0&&gv>=lim){const storm=gv>=lim+5;
+    out.push('<div class="alert'+(storm?' storm':'')+'">'+(storm?'🌪️ Штормовой ветер':'💨 Сильный ветер')+': '+(H.wind_gusts_10m[gi]!=null?'порывы':'ветер')+' до '+r(gv)+' м/с · '+when(gi)+'</div>')}
+  if(th>=0)out.push('<div class="alert storm">⛈️ Гроза · '+when(th)+'</div>');
+  return out.join('');
+}
+
+function renderWeather(H,D,savedAt,fromCache,srcName){
+  const time=H.time;
+  const nowStr=nowLocal();
   let s0=0; time.forEach((t,i)=>{if(t<=nowStr)s0=i});
   const c={time:time[s0]}; [...HKEYS,'wind_direction_10m','weather_code'].forEach(k=>c[k]=H[k][s0]);
   const h=H, [ic,ds]=w(c.weather_code);
   $('t').textContent=sign(c.temperature_2m).replace('°','');
-  $('desc').textContent=ds; $('bg').textContent=ic;
+  $('desc').textContent=ds; $('bg').innerHTML=bgIcon(c.weather_code);
   $('fl').textContent=sign(c.apparent_temperature);
-  $('wd').textContent=dir(c.wind_direction_10m)+' '+r(c.wind_speed_10m)+' м/с, порывы '+r(c.wind_gusts_10m);
+  $('wd').textContent=dir(c.wind_direction_10m)+' '+r(c.wind_speed_10m)+' м/с'+(c.wind_gusts_10m!=null?', порывы '+r(c.wind_gusts_10m):'');
   $('hm').textContent=r(c.relative_humidity_2m)+'%';
   $('pr').textContent=r(c.pressure_msl*0.750062)+' мм рт. ст.';
-  $('upd').textContent='Обновлено '+wdOf(c.time)+' '+hmOf(c.time)+' (вл.)';
+  const hmNow=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit'}).format(new Date(savedAt));
+  $('upd').textContent=(fromCache?'Из кеша, получено '+ago(savedAt)+' · ':'Обновлено '+hmNow+' (вл.) · ')+'источник: '+(srcName==='met'?'MET Norway':'Open-Meteo');
+  const day0=h.time[s0].slice(0,10), sun=sunTimes(day0);
+  $('sr').textContent=sun?sun.rise:'—'; $('ss').textContent=sun?sun.set:'—';
+  $('alerts').innerHTML=buildAlerts(H,s0,day0);
 
   // 3 дня: строка = один день, часы 00…21 с шагом 3 ч, в начале строки дата; прошедшие часы пустые
   const d0=h.time[s0].slice(0,10);
@@ -249,7 +409,7 @@ async function loadWeather(){
 
   // окна: от текущего времени на сутки вперёд, блоки по 2 часа
   const startH=2*Math.floor(+nowStr.slice(11,13)/2);
-  let rows='<tr><th>Окно</th><th></th><th>t, °C</th><th>мм</th><th>осадки, %</th><th>м/с</th><th>порыв</th><th>вл.</th></tr>';
+  let rows='<tr><th>Окно</th><th></th><th>t, °C</th><th>мм</th><th>м/с</th><th>порыв</th><th>вл.</th></tr>';
   for(let wI=0;wI<12;wI++){
     const idx=[s0+2*wI,s0+2*wI+1].filter(i=>i<h.time.length);
     if(!idx.length)break;
@@ -257,30 +417,78 @@ async function loadWeather(){
     const g=k=>idx.map(i=>h[k][i]).filter(v=>v!=null);
     const T=g('temperature_2m'), G=g('wind_gusts_10m'), C=g('weather_code');
     const worst=C.reduce((m,x)=>sev(x)>sev(m)?x:m,C[0]);
-    const gm=Math.max(...G);
+    const gm=G.length?Math.max(...G):null;
     rows+=`<tr><td>${p2(a)}–${p2(b)}</td><td class="e">${w(worst)[0]}</td><td>${r(Math.min(...T))===r(Math.max(...T))?r(Math.min(...T))+'°':r(Math.min(...T))+'…'+r(Math.max(...T))+'°'}</td>
-    <td>${g('precipitation').reduce((x,y)=>x+y,0).toFixed(1)}</td>
-    <td>${(()=>{const pv=g('precipitation_probability');return pv.length?r(avg(pv))+'%':'—'})()}</td><td>${r(avg(g('wind_speed_10m')))}</td>
-    <td class="gust" style="color:${gcol(gm)}">${r(gm)}</td><td>${r(avg(g('relative_humidity_2m')))}%</td></tr>`;
+    <td>${g('precipitation').reduce((x,y)=>x+y,0).toFixed(1)}</td><td>${r(avg(g('wind_speed_10m')))}</td>
+    <td class="gust" style="color:${gm==null?'inherit':gcol(gm)}">${gm==null?'—':r(gm)}</td><td>${r(avg(g('relative_humidity_2m')))}%</td></tr>`;
   }
   $('win').innerHTML=rows;
 
   // неделя (без сегодняшнего дня — он уже в блоке "Сейчас" и в окнах)
   const d=D;
   $('days').innerHTML=d.time.slice(1).map((t,k)=>{
-    const i=k+1, [ic,ds]=w(d.weather_code[i]), prob=d.precipitation_probability_max?.[i];
+    const i=k+1, [ic,ds]=w(d.weather_code[i]);
     return `<div class="d"><div class="n">${k===0?'Завтра':wdOf(t)}<small>${t.slice(8,10)}.${t.slice(5,7)}</small></div>
-    <div class="i">${ic}</div><div class="t">${ds}, порывы до ${r(d.wind_gusts_10m_max[i])} м/с</div>
-    <div class="rain">${(d.precipitation_sum[i]||0).toFixed(1)} мм${prob!=null&&prob>=20?`<small style="display:block;font-size:11px">${prob}%</small>`:''}</div>
+    <div class="i">${ic}</div><div class="t">${ds}, ${d.noGust?'ветер':'порывы'} до ${r(d.wind_gusts_10m_max[i])} м/с</div>
+    <div class="rain">${(d.precipitation_sum[i]||0).toFixed(1)} мм</div>
     <div class="range"><span>${sign(d.temperature_2m_max[i])}</span><span>${sign(d.temperature_2m_min[i])}</span></div></div>`}).join('');
 }
 
+let __rendered=false;
+async function loadWeather(){
+  const key='wx:'+Q+':'+SOURCE;
+  if(!__rendered){
+    const c=cacheGet(key);
+    if(c&&c.H&&c.D){try{renderWeather(c.H,c.D,c.t,true,c.src);__rendered=true}catch(e){}}
+  }
+  let res,src=SOURCE,note='';
+  try{res=SOURCE==='met'?await loadMet():await loadOpenMeteo()}
+  catch(e){
+    if(SOURCE==='om'){
+      try{res=await loadMet();src='met';note='Open-Meteo недоступен — показан MET Norway.'}
+      catch(e2){throw new Error(e.message+' | MET Norway: '+e2.message)}
+    }else throw e;
+  }
+  const t=Date.now();
+  cachePut(key,{H:res.H,D:res.D,t:t,src:src});
+  renderWeather(res.H,res.D,t,false,src);
+  __rendered=true;
+  return note;
+}
+
+let __seaDrawn=false;
+function drawSea(o){
+  const now=nowLocal(); let s=0; o.time.forEach((t,i)=>{if(t<=now)s=i});
+  const wh=o.wh[s], wp=o.wp[s], wdr=o.wd[s];
+  let sv=null;
+  if(o.sst){for(let i=s;i<o.sst.length;i++){if(o.sst[i]!=null){sv=o.sst[i];break}} if(sv==null){for(let i=s-1;i>=0;i--){if(o.sst[i]!=null){sv=o.sst[i];break}}}}
+  $('sea').innerHTML='<span>Волна <b>'+(wh!=null?wh.toFixed(1)+' м':'—')+'</b></span><span>Период <b>'+(wp!=null?r(wp)+' с':'—')+'</b></span><span>Откуда <b>'+(wdr!=null?dir(wdr):'—')+'</b></span><span>Вода <b>'+(sv!=null?sign(sv):'нет данных')+'</b></span>';
+  const col=h=>h==null?'inherit':h>=2.5?'#ff5a4d':h>=1.5?'#ffb02e':'#6fd08c';
+  let rows='<tr><th>Время</th><th>волна, м</th><th>период, с</th><th>откуда</th></tr>';
+  for(let i=s;i<Math.min(o.time.length,s+49);i+=3){
+    const h=o.wh[i];
+    rows+='<tr><td>'+wdOf(o.time[i])+' '+hmOf(o.time[i])+'</td><td class="gust" style="color:'+col(h)+'">'+(h!=null?h.toFixed(1):'—')+'</td><td>'+(o.wp[i]!=null?r(o.wp[i]):'—')+'</td><td>'+(o.wd[i]!=null?dir(o.wd[i]):'—')+'</td></tr>';
+  }
+  $('wavet').innerHTML=rows;
+  // предупреждение о волнении (ближайшие 36 часов)
+  let mi=-1,mv=-1;
+  for(let i=s;i<Math.min(o.time.length,s+37);i++){if(o.wh[i]!=null&&o.wh[i]>mv){mv=o.wh[i];mi=i}}
+  const cfg=getCfg();
+  $('salert').innerHTML=(cfg.alerts&&mi>=0&&mv>=2.0)?'<div class="alert'+(mv>=3?' storm':'')+'">🌊 Сильное волнение: волна до '+mv.toFixed(1)+' м · '+wdOf(o.time[mi])+' '+hmOf(o.time[mi])+'</div>':'';
+}
 async function loadSea(){
+  const key='sea:'+Q;
+  if(!__seaDrawn){const c=cacheGet(key);if(c&&c.time){try{drawSea(c);__seaDrawn=true}catch(e){}}}
   try{
-    const j=await (await fetch('https://marine-api.open-meteo.com/v1/marine?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&current=wave_height,wave_period')).json();
-    const c=j.current||{};
-    $('sea').innerHTML=`<span>Волна <b>${c.wave_height!=null?c.wave_height.toFixed(1):'—'} м</b></span><span>Период <b>${c.wave_period!=null?r(c.wave_period):'—'} с</b></span>`;
-  }catch(e){$('sea').textContent='Нет данных о море'}
+    const base='https://marine-api.open-meteo.com/v1/marine?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&forecast_days=3';
+    const [a,b]=await Promise.all([getJson(base+'&hourly=wave_height,wave_period,wave_direction'),getJson(base+'&hourly=sea_surface_temperature').catch(()=>null)]);
+    const hj=a.json&&a.json.hourly;
+    if(!a.ok||!hj||!hj.time)throw new Error('нет данных');
+    const bj=b&&b.ok&&b.json&&b.json.hourly;
+    const o={time:hj.time,wh:hj.wave_height||[],wp:hj.wave_period||[],wd:hj.wave_direction||[],sst:(bj&&bj.sea_surface_temperature&&bj.time&&bj.time.length===hj.time.length)?bj.sea_surface_temperature:null};
+    cachePut(key,o);
+    drawSea(o);__seaDrawn=true;
+  }catch(e){if(!__seaDrawn)$('sea').textContent='Нет данных о море'}
 }
 
 $('wf').src='https://embed.windy.com/embed2.html?lat='+LAT+'&lon='+LON+'&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=m%2Fs&metricTemp=%C2%B0C';
@@ -333,7 +541,57 @@ $('cx').onclick=()=>$('dlg').close();
 $('dlg').addEventListener('close',()=>{$('view').innerHTML='';if(hls){hls.destroy();hls=null}});
 $('dlg').addEventListener('click',e=>{if(e.target===$('dlg'))$('dlg').close()});
 
-const run=()=>{loadWeather().then(()=>{$('err').textContent=''}).catch(e=>$('err').textContent='Прогноз не загрузился: '+e.message);loadSea()};
+let SOURCE='om'; try{SOURCE=localStorage.getItem('src')==='met'?'met':'om'}catch(e){}
+function refreshSettings(){
+  const c=getCfg();
+  document.querySelectorAll('#sdlg [data-s]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===SOURCE)));
+  $('s_al').checked=!!c.alerts; $('s_wind').value=String(c.wind);
+  if(window.AndroidBridge&&AndroidBridge.notifEnabled){
+    let t='';
+    try{t='Уведомления: '+(AndroidBridge.notifEnabled()?'включены':'выключены')+' · точные будильники: '+(AndroidBridge.exactAlarms()?'разрешены':'не разрешены')}catch(e){}
+    $('s_notif').textContent=t; $('s_sys').style.display='';
+  } else { $('s_sys').style.display='none' }
+}
+$('setb').onclick=()=>{refreshSettings();$('s_note').textContent='';$('sdlg').showModal()};
+$('sx').onclick=()=>$('sdlg').close();
+$('sdlg').addEventListener('click',e=>{if(e.target===$('sdlg'))$('sdlg').close()});
+document.querySelectorAll('#sdlg [data-s]').forEach(b=>b.onclick=()=>{
+  SOURCE=b.dataset.s; try{localStorage.setItem('src',SOURCE)}catch(e){}
+  __rendered=false; refreshSettings(); $('err').textContent='Загружаю…'; run();
+});
+$('s_al').onchange=()=>{setCfg({alerts:$('s_al').checked});run()};
+$('s_wind').onchange=()=>{setCfg({wind:Number($('s_wind').value)});run()};
+$('s_nbtn').onclick=()=>{try{AndroidBridge.openNotifSettings()}catch(e){}};
+$('s_abtn').onclick=()=>{try{AndroidBridge.openAlarmSettings()}catch(e){}};
+$('s_diag').onclick=async()=>{
+  const out=$('s_diagout'); out.textContent='Проверяю…';
+  const tests=[
+    ['Open-Meteo (прогноз)','https://api.open-meteo.com/v1/forecast?latitude=43.1&longitude=131.9&current=temperature_2m'],
+    ['Open-Meteo (море)','https://marine-api.open-meteo.com/v1/marine?latitude=43.1&longitude=131.9&current=wave_height'],
+    ['MET Norway','https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=43.1155&lon=131.8855']
+  ];
+  const lines=[]; let dns=false, ok=0;
+  for(const [n,u] of tests){
+    const t0=Date.now();
+    try{const o=await getJson(u);if(o.ok)ok++;lines.push((o.ok?'✅ ':'⚠️ ')+n+': HTTP '+o.status+' · '+((Date.now()-t0)/1000).toFixed(1)+' с')}
+    catch(e){const m=String(e.message);if(/UnknownHost|resolve/i.test(m))dns=true;lines.push('❌ '+n+': '+(/UnknownHost|resolve/i.test(m)?'адрес не найден (DNS)':/Timeout|timed out/i.test(m)?'нет ответа за 10 с':m.replace(/java\.net\./g,'').slice(0,90)))}
+    out.innerHTML=lines.join('<br>')+'<br>…';
+  }
+  let hint='';
+  if(ok===0)hint=dns?'Телефон не находит эти адреса. Проверьте интернет; включите VPN или задайте «Частный DNS» (dns.google) в настройках сети.':'Ни один адрес не отвечает. Проверьте интернет или включите VPN.';
+  else if(ok<tests.length)hint='Часть адресов недоступна. Выберите в «Источнике прогноза» тот, который отмечен ✅.';
+  else hint='Все адреса доступны.';
+  out.innerHTML=lines.join('<br>')+'<br>'+hint;
+};
+$('s_clr').onclick=()=>{
+  try{Object.keys(localStorage).filter(k=>k.startsWith('wx:')||k.startsWith('sea:')).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  $('s_note').textContent='Сохранённые данные удалены.';
+};
+const run=()=>{
+  loadWeather().then(note=>{$('err').textContent=note||'';$('setb').style.borderColor=''})
+  .catch(e=>{$('err').textContent='Прогноз не загрузился: '+e.message+(__rendered?' · показан сохранённый прогноз':'')+(SOURCE==='om'?' — если нет VPN, выберите MET Norway в «Настройках приложения»':'');$('setb').style.borderColor='var(--buoy)'});
+  loadSea();
+};
 run(); setInterval(run,15*60*1000);
 </script>
 </body>
