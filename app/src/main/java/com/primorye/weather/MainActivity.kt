@@ -13,7 +13,10 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.view.ViewGroup
+import android.view.WindowInsets
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -23,7 +26,7 @@ class MainActivity : Activity() {
     companion object {
         private const val REMOTE_URL = ""
         private const val LOCAL_URL = "file:///android_asset/forecast.html"
-        private val ALLOWED_HOSTS = setOf("api.open-meteo.com", "marine-api.open-meteo.com")
+        private val ALLOWED_HOSTS = setOf("api.open-meteo.com", "marine-api.open-meteo.com", "api.met.no")
     }
 
     private lateinit var web: WebView
@@ -58,6 +61,14 @@ class MainActivity : Activity() {
             }
         }
 
+        // Системные настройки приложения (разрешения, уведомления, батарея)
+        @JavascriptInterface
+        fun openAppSettings() {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        }
+
         // Запрос погоды средствами Android (обходит ограничения WebView).
         // Разрешены только адреса Open-Meteo по https.
         @JavascriptInterface
@@ -69,9 +80,9 @@ class MainActivity : Activity() {
                         throw SecurityException("адрес не разрешён")
                     }
                     val c = u.openConnection() as HttpURLConnection
-                    c.connectTimeout = 15000
+                    c.connectTimeout = 10000
                     c.readTimeout = 25000
-                    c.setRequestProperty("User-Agent", "PrimoryeWeather/1.0")
+                    c.setRequestProperty("User-Agent", "PrimoryeWeather/1.0 github.com/korkunov76-bot/primorye-weather")
                     val code = c.responseCode
                     val stream = if (code in 200..299) c.inputStream else c.errorStream
                     val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
@@ -113,7 +124,33 @@ class MainActivity : Activity() {
             }
         }
         web.loadUrl(if (REMOTE_URL.isNotEmpty()) REMOTE_URL else LOCAL_URL)
-        setContentView(web)
+        // Контейнер с отступами под строку состояния и панель навигации,
+        // чтобы заголовок не заходил под часы и кнопки телефона
+        val root = FrameLayout(this)
+        root.setBackgroundColor(0xFF0D2431.toInt())
+        root.addView(
+            web,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        setContentView(root)
+        root.setOnApplyWindowInsetsListener { v, insets ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+                v.setPadding(b.left, b.top, b.right, b.bottom)
+            } else {
+                v.setPadding(
+                    insets.systemWindowInsetLeft,
+                    insets.systemWindowInsetTop,
+                    insets.systemWindowInsetRight,
+                    insets.systemWindowInsetBottom
+                )
+            }
+            insets
+        }
+        root.requestApplyInsets()
 
         WeatherAlarm.schedule(this)
         if (Build.VERSION.SDK_INT >= 33) {
