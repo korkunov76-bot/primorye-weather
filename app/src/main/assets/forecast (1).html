@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0d2431">
+<title>Погода во Владивостоке</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d2431;--line:#27495a;--fog:#e6eef0;--mute:#8fa9b5;--sea:#7fd1c4;--buoy:#ff7a45}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fog);font:16px/1.45 Onest,system-ui,sans-serif;padding:18px;max-width:1000px;margin:auto}
+h1{font:500 22px Onest,sans-serif;color:var(--sea)}
+h2{font:500 13px Onest,sans-serif;color:var(--mute);margin:28px 0 10px}
+.now{display:flex;flex-wrap:wrap;align-items:flex-end;gap:22px;padding:16px 0 20px;border-bottom:1px solid var(--line)}
+.temp{font:400 clamp(70px,16vw,120px)/.9 Onest,sans-serif}
+.temp sup{font-size:.35em;color:var(--sea);vertical-align:top;position:relative;top:.2em}
+.desc{font-size:22px;font-weight:500}
+.meta{display:grid;grid-template-columns:repeat(2,auto);gap:4px 22px;color:var(--mute);font-size:14px;margin-top:8px}
+.meta b{color:var(--fog);font-weight:500}
+.temp{position:relative;display:inline-block;z-index:1}
+.bgico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:clamp(140px,34vw,230px);opacity:.32;mix-blend-mode:screen;z-index:0;pointer-events:none;filter:saturate(.9)}
+.days3{display:flex;flex-direction:column}
+.d3t{font-size:13px;color:var(--mute);margin:14px 0 3px;text-align:center}
+.d3t b{color:var(--fog);font-weight:500;font-size:15px}
+.d3r{display:grid;grid-template-columns:repeat(8,1fr);align-items:center;border-bottom:1px solid var(--line);padding:7px 0}
+.h{text-align:center;min-width:0;font-size:13px}
+.h small{display:block;color:var(--mute);font-size:12px}.h .i{font-size:20px}
+.h.past{visibility:hidden}
+.scroll{overflow:visible}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-variant-numeric:tabular-nums}
+th,td{padding:8px 3px;text-align:right;border-bottom:1px solid var(--line);font-size:13px}
+th:nth-child(1){width:21%}th:nth-child(2){width:11%}th:nth-child(3){width:22%}
+th{color:var(--mute);font-weight:400;font-size:12px}
+td:first-child,th:first-child{text-align:left}
+td:nth-child(2),th:nth-child(2){text-align:center}
+td:nth-child(3),th:nth-child(3){padding-right:22px}
+td:nth-child(5),th:nth-child(5){padding-right:22px}
+td.e{font-size:18px}
+.gust{font-weight:700}
+.d{display:grid;grid-template-columns:90px 36px 1fr 70px 110px;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.d:first-child{border-top:1px solid var(--line)}
+.d .n small{display:block;color:var(--mute);font-size:12px}.d .i{font-size:26px}
+.d .t{color:var(--mute);font-size:14px}.rain{color:var(--sea);text-align:right;font-size:14px}
+.range{display:flex;gap:8px;justify-content:flex-end}.range span:first-child{font-weight:700}.range span:last-child{color:var(--mute)}
+.sea{display:flex;gap:24px;flex-wrap:wrap;color:var(--mute)}.sea b{color:var(--fog);font-weight:500}
+#map{height:min(70vh,560px);overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#0a1a24}
+.ctl{display:flex;align-items:center;gap:12px;margin-top:10px}
+.ctl button{background:var(--buoy);color:#1a0d05;border:0;border-radius:50%;width:42px;height:42px;font-size:15px;cursor:pointer}
+.ctl input{flex:1;accent-color:var(--buoy)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+footer{font-size:12px;color:var(--mute);margin-top:8px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.camb{background:transparent;color:var(--fog);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font:500 14px Onest,sans-serif;cursor:pointer}
+.camb:hover{border-color:var(--sea)}
+dialog{background:#10303f;color:var(--fog);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(720px,94vw);margin:auto}
+dialog::backdrop{background:rgba(5,15,22,.7)}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dh button{background:none;border:0;color:var(--mute);font-size:22px;cursor:pointer}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+#ov{margin-bottom:10px}
+.tabs button{background:transparent;color:var(--fog);border:1px solid var(--line);border-radius:18px;padding:6px 14px;font:14px Onest,sans-serif;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--sea);color:#06201c;border-color:var(--sea)}
+.view{aspect-ratio:16/9;background:#0a1a24;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center}
+.view.cam{aspect-ratio:auto;height:min(40vh,300px);display:block;text-align:left;position:relative}
+.view.cam iframe{display:block}
+.camadj{position:absolute;right:8px;bottom:8px;display:flex;gap:6px;z-index:5}
+.camadj button{background:#10303f;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:500 14px Onest,sans-serif;cursor:pointer;opacity:.92}
+#wf,#lmap{width:100%;height:100%;border:0}
+#mctl input{flex:1;accent-color:var(--buoy)}
+.dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.7)}
+.clabel{color:#d6e6ec;font:500 11px/1 Onest,sans-serif;white-space:nowrap;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
+.clabel i{display:inline-block;width:5px;height:5px;border-radius:50%;background:#ff7a45;margin-right:4px;vertical-align:middle}
+.warr{background:none;border:0;color:#fff;text-shadow:0 0 3px #000;display:flex;flex-direction:column;align-items:center;font:700 9px/1.1 Onest,sans-serif}
+.warr .ar{display:block;font-size:14px;line-height:14px;transition:transform .3s}
+.legend{height:8px;border-radius:4px;margin-top:8px}
+.mapctl{display:flex;align-items:center;gap:12px;margin-top:10px}
+.legendwrap{display:flex;align-items:center;gap:10px;margin-top:8px;color:var(--mute);font-size:11px}
+.legendwrap span{min-width:52px}
+.legendwrap span:last-child{text-align:right}
+.mapctl button{background:var(--buoy);color:#1a0d05;border:0;border-radius:50%;width:42px;height:42px;font-size:15px;cursor:pointer}
+.view iframe,.view video{width:100%;height:100%;border:0}
+.view a{display:inline-block;background:var(--buoy);color:#1a0d05;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:24px}
+.note{font-size:12px;color:var(--mute);margin-top:8px}
+#err{color:var(--buoy)}
+.locs{display:flex;gap:12px;align-self:center}
+.locs button{border-radius:12px;border:1px solid var(--sea);background:transparent;color:var(--fog);font:500 14px Onest,sans-serif;cursor:pointer;padding:10px 14px}
+.locs button:hover{background:var(--sea);color:#06201c}
+#back{position:fixed;top:12px;left:12px;z-index:99;background:var(--buoy);color:#1a0d05;border:0;border-radius:14px;padding:12px 20px;font:700 30px/1 Onest,sans-serif;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.45)}
+
+@media(max-width:620px){.d{grid-template-columns:70px 30px 1fr 90px}.d .t,.big{display:none}}
+</style>
+</head>
+<body>
+<div class="top"><h1 id="placename">Владивосток</h1>
+<button class="camb" id="notif">🔔 Уведомления</button><button class="camb" id="camb">Камеры онлайн</button></div>
+<button id="back" onclick="location.href=location.pathname" title="К прогнозу Владивостока" hidden>←</button>
+<div id="err"></div>
+<section class="now">
+  <div class="temp"><div class="bgico" id="bg"></div><span id="t">–</span><sup>°C</sup></div>
+  <div class="locs">
+    <button data-loc="terney" title="Прогноз для Тернея">Терней</button>
+    <button data-loc="trio" title="Прогноз для бухты Триозерье">Триозерье</button>
+  </div>
+  <div><div class="desc" id="desc">Загрузка…</div>
+    <div class="meta"><span>Ощущается <b id="fl">–</b></span><span>Ветер <b id="wd">–</b></span>
+    <span>Влажность <b id="hm">–</b></span><span>Давление <b id="pr">–</b></span>
+    </div></div>
+</section>
+
+<h2>Сутки по окнам, сейчас → +24 ч</h2><div class="scroll"><table id="win"></table></div>
+<div class="note">мм — осадки, «осадки, %» — вероятность осадков в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
+<h2>Прогноз на 3 дня, каждые 3 часа</h2><div class="days3" id="hours"></div>
+<h2>Прогноз на неделю</h2><div id="days"></div>
+<h2>Море</h2><div class="sea" id="sea">–</div>
+<h2>Карта ветра</h2>
+<div id="map"><iframe id="wf" title="Карта ветра Windy" allowfullscreen></iframe></div>
+<div class="note">Модель ECMWF, поверхность: цвет — скорость ветра, белые штрихи — направление. Анимация прогноза на неделю — кнопка ▶ в левом нижнем углу карты.</div>
+<footer>Данные: Open-Meteo, консенсус моделей ECMWF · GFS · ICON · JMA · ARPEGE · CMA · GEM (без крайних значений); карта — Windy.com (ECMWF). Прогноз синоптиков: <a href="https://www.primgidromet.ru/" target="_blank" rel="noopener" style="color:var(--sea)">Примгидромет</a>. <span id="upd"></span></footer>
+
+<dialog id="dlg">
+  <div class="dh"><b>Камеры Владивостока</b><button id="cx" aria-label="Закрыть">✕</button></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="view" id="view"></div>
+  <div class="note" id="cnote"></div>
+</dialog>
+
+<script>
+// диагностика: отдельный блок, чтобы сработал даже при синтаксической ошибке в основном скрипте
+window.addEventListener('DOMContentLoaded',function(){var e=document.getElementById('err');if(e&&!e.textContent)e.textContent='Скрипт запущен, загружаю…'});
+window.onerror=function(m,s,l){var e=document.getElementById('err');if(e)e.textContent='Ошибка: '+m+' (строка '+l+')'};
+window.addEventListener('unhandledrejection',function(ev){var e=document.getElementById('err');if(e)e.textContent='Ошибка: '+(ev.reason&&ev.reason.message||ev.reason)});
+</script>
+<script>
+const $=id=>document.getElementById(id);
+const PLACES={vladivostok:{n:'Владивосток',la:43.1155,lo:131.8855},
+ terney:{n:'Терней',la:45.03,lo:136.6},
+ trio:{n:'Бухта Триозерье',la:42.745,lo:133.229}};
+const Q=new URLSearchParams(location.search).get('loc')||'vladivostok';
+const PLACE=PLACES[Q]||PLACES.vladivostok;
+const LAT=PLACE.la, LON=PLACE.lo, TZ='Asia/Vladivostok';
+document.title='Погода: '+PLACE.n;
+document.getElementById('placename').textContent=PLACE.n;
+if(Q!=='vladivostok')document.getElementById('back').hidden=false;
+document.querySelectorAll('.locs button').forEach(b=>b.onclick=()=>{location.search='loc='+b.dataset.loc});
+
+// кнопка настроек уведомлений (в браузере без APK скрыта)
+if(window.AndroidBridge){
+  $('notif').onclick=()=>AndroidBridge.openNotifSettings();
+  try{ if(!AndroidBridge.notifEnabled()) $('notif').textContent='🔕 Уведомления выкл.' }catch(e){}
+} else { $('notif').style.display='none' }
+const WD=['вс','пн','вт','ср','чт','пт','сб'];
+const WMO={0:['☀️','Ясно'],1:['🌤️','Малооблачно'],2:['⛅','Переменная облачность'],3:['☁️','Пасмурно'],45:['🌫️','Туман'],48:['🌫️','Изморозь'],
+51:['🌦️','Морось'],53:['🌦️','Морось'],55:['🌧️','Сильная морось'],56:['🌧️','Ледяная морось'],57:['🌧️','Ледяная морось'],
+61:['🌧️','Небольшой дождь'],63:['🌧️','Дождь'],65:['🌧️','Сильный дождь'],66:['🌨️','Ледяной дождь'],67:['🌨️','Ледяной дождь'],
+71:['🌨️','Небольшой снег'],73:['❄️','Снег'],75:['❄️','Сильный снег'],77:['❄️','Снежная крупа'],
+80:['🌦️','Ливень'],81:['🌧️','Сильный ливень'],82:['⛈️','Очень сильный ливень'],85:['❄️','Снегопад'],86:['❄️','Сильный снегопад'],
+95:['⛈️','Гроза'],96:['⛈️','Гроза с градом'],99:['⛈️','Гроза с градом']};
+const w=c=>WMO[c]||['❔','—'];
+const sev=c=>c<=3?0:(c===45||c===48)?1:(c>=95)?3:2;
+const DIRS=['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'], dir=d=>DIRS[Math.round(d/45)%8];
+const r=x=>Math.round(x), sign=x=>(r(x)>0?'+':'')+r(x)+'°', p2=n=>String(n).padStart(2,'0');
+const gcol=g=>g>=20?'#ff5a4d':g>=12?'#ffb02e':'#6fd08c';
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+// день недели и ч:мм из строки API 'YYYY-MM-DDTHH:MM' — без зависимости от часового пояса браузера
+const wdOf=s=>{const[y,m,d]=s.slice(0,10).split('-').map(Number);return WD[new Date(y,m-1,d).getDay()]};
+const hmOf=s=>s.slice(11,16);
+
+// Консенсус моделей: по каждой точке отбрасываем крайние верхнее и нижнее значения, усредняем остальные
+const MODELS=['ecmwf_ifs025','gfs_seamless','icon_seamless','jma_seamless','meteofrance_seamless','cma_grapes_global','gem_seamless'];
+function cons(a){const v=a.filter(x=>x!=null).sort((x,y)=>x-y);if(v.length>2){v.pop();v.shift()}return v.length?v.reduce((x,y)=>x+y,0)/v.length:null}
+function wmode(a){const f={};a.forEach(x=>{if(x!=null)f[x]=(f[x]||0)+1});let best=null,bn=0;
+  for(const k in f){const kk=+k;if(f[kk]>bn||(f[kk]===bn&&best!==null&&sev(kk)>sev(best))||best===null){best=kk;bn=f[kk]}}return best}
+function cdir(a){const v=a.filter(x=>x!=null);if(!v.length)return 0;
+  const sx=v.reduce((t,x)=>t+Math.sin(x*Math.PI/180),0),sy=v.reduce((t,x)=>t+Math.cos(x*Math.PI/180),0);
+  return (Math.atan2(sx,sy)*180/Math.PI+360)%360}
+const HKEYS=['temperature_2m','apparent_temperature','precipitation','precipitation_probability','wind_speed_10m','wind_gusts_10m','relative_humidity_2m','pressure_msl'];
+const DKEYS=['temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max','wind_gusts_10m_max'];
+
+async function loadWeather(){
+  const base='https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&wind_speed_unit=ms&forecast_days=7'+
+  '&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m,pressure_msl,weather_code'+
+  '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max';
+  const res=await Promise.allSettled(MODELS.map(m=>fetch(base+'&models='+m).then(r=>r.json())));
+  const js=res.map(x=>x.status==='fulfilled'&&x.value&&x.value.hourly?x.value:null).filter(Boolean);
+  if(js.length<2)throw new Error('модели не ответили');
+  const time=js[0].hourly.time, H={time};
+  HKEYS.forEach(k=>{H[k]=time.map((_,i)=>cons(js.map(j=>j.hourly[k]&&j.hourly[k][i])))});
+  H.wind_direction_10m=time.map((_,i)=>cdir(js.map(j=>j.hourly.wind_direction_10m&&j.hourly.wind_direction_10m[i])));
+  H.weather_code=time.map((_,i)=>wmode(js.map(j=>j.hourly.weather_code&&j.hourly.weather_code[i])));
+  const dtime=js[0].daily.time, D={time:dtime};
+  DKEYS.forEach(k=>{D[k]=dtime.map((_,i)=>cons(js.map(j=>j.daily[k]&&j.daily[k][i])))});
+  D.weather_code=dtime.map((_,i)=>wmode(js.map(j=>j.daily.weather_code&&j.daily.weather_code[i])));
+  // "сейчас" = консенсус на текущем часу по времени Владивостока
+  const nowStr=new Intl.DateTimeFormat('sv-SE',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).replace(' ','T');
+  let s0=0; time.forEach((t,i)=>{if(t<=nowStr)s0=i});
+  const c={time:time[s0]}; [...HKEYS,'wind_direction_10m','weather_code'].forEach(k=>c[k]=H[k][s0]);
+  const h=H, [ic,ds]=w(c.weather_code);
+  $('t').textContent=sign(c.temperature_2m).replace('°','');
+  $('desc').textContent=ds; $('bg').textContent=ic;
+  $('fl').textContent=sign(c.apparent_temperature);
+  $('wd').textContent=dir(c.wind_direction_10m)+' '+r(c.wind_speed_10m)+' м/с, порывы '+r(c.wind_gusts_10m);
+  $('hm').textContent=r(c.relative_humidity_2m)+'%';
+  $('pr').textContent=r(c.pressure_msl*0.750062)+' мм рт. ст.';
+  $('upd').textContent='Обновлено '+wdOf(c.time)+' '+hmOf(c.time)+' (вл.)';
+
+  // 3 дня: строка = один день, часы 00…21 с шагом 3 ч, в начале строки дата; прошедшие часы пустые
+  const d0=h.time[s0].slice(0,10);
+  const[y0,m0,dd0]=d0.split('-').map(Number);
+  $('hours').innerHTML=[0,1,2].map(d=>{
+    const dt=new Date(y0,m0-1,dd0+d), ds=dt.getFullYear()+'-'+p2(dt.getMonth()+1)+'-'+p2(dt.getDate());
+    const cells=[0,3,6,9,12,15,18,21].map(hh=>{
+      const i=h.time.indexOf(ds+'T'+p2(hh)+':00');
+      if(i<0)return '<div class="h"></div>';
+      const past=h.time[i]<=nowStr?' past':'';
+      return `<div class="h${past}"><small>${p2(hh)}:00</small>
+        <div class="i">${w(h.weather_code[i])[0]}</div><b>${sign(h.temperature_2m[i])}</b></div>`}).join('');
+    const name=d===0?'Сегодня':d===1?'Завтра':wdOf(ds);
+    return `<div class="d3t"><b>${name}</b> · ${ds.slice(8,10)}.${ds.slice(5,7)}</div><div class="d3r">${cells}</div>`}).join('');
+
+  // окна: от текущего времени на сутки вперёд, блоки по 2 часа
+  const startH=2*Math.floor(+nowStr.slice(11,13)/2);
+  let rows='<tr><th>Окно</th><th></th><th>t, °C</th><th>мм</th><th>осадки, %</th><th>м/с</th><th>порыв</th><th>вл.</th></tr>';
+  for(let wI=0;wI<12;wI++){
+    const idx=[s0+2*wI,s0+2*wI+1].filter(i=>i<h.time.length);
+    if(!idx.length)break;
+    const a=(startH+2*wI)%24, b=(startH+2*wI+2)%24;
+    const g=k=>idx.map(i=>h[k][i]).filter(v=>v!=null);
+    const T=g('temperature_2m'), G=g('wind_gusts_10m'), C=g('weather_code');
+    const worst=C.reduce((m,x)=>sev(x)>sev(m)?x:m,C[0]);
+    const gm=Math.max(...G);
+    rows+=`<tr><td>${p2(a)}–${p2(b)}</td><td class="e">${w(worst)[0]}</td><td>${r(Math.min(...T))===r(Math.max(...T))?r(Math.min(...T))+'°':r(Math.min(...T))+'…'+r(Math.max(...T))+'°'}</td>
+    <td>${g('precipitation').reduce((x,y)=>x+y,0).toFixed(1)}</td>
+    <td>${(()=>{const pv=g('precipitation_probability');return pv.length?r(avg(pv))+'%':'—'})()}</td><td>${r(avg(g('wind_speed_10m')))}</td>
+    <td class="gust" style="color:${gcol(gm)}">${r(gm)}</td><td>${r(avg(g('relative_humidity_2m')))}%</td></tr>`;
+  }
+  $('win').innerHTML=rows;
+
+  // неделя (без сегодняшнего дня — он уже в блоке "Сейчас" и в окнах)
+  const d=D;
+  $('days').innerHTML=d.time.slice(1).map((t,k)=>{
+    const i=k+1, [ic,ds]=w(d.weather_code[i]), prob=d.precipitation_probability_max?.[i];
+    return `<div class="d"><div class="n">${k===0?'Завтра':wdOf(t)}<small>${t.slice(8,10)}.${t.slice(5,7)}</small></div>
+    <div class="i">${ic}</div><div class="t">${ds}, порывы до ${r(d.wind_gusts_10m_max[i])} м/с</div>
+    <div class="rain">${(d.precipitation_sum[i]||0).toFixed(1)} мм${prob!=null&&prob>=20?`<small style="display:block;font-size:11px">${prob}%</small>`:''}</div>
+    <div class="range"><span>${sign(d.temperature_2m_max[i])}</span><span>${sign(d.temperature_2m_min[i])}</span></div></div>`}).join('');
+}
+
+async function loadSea(){
+  try{
+    const j=await (await fetch('https://marine-api.open-meteo.com/v1/marine?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&current=wave_height,wave_period')).json();
+    const c=j.current||{};
+    $('sea').innerHTML=`<span>Волна <b>${c.wave_height!=null?c.wave_height.toFixed(1):'—'} м</b></span><span>Период <b>${c.wave_period!=null?r(c.wave_period):'—'} с</b></span>`;
+  }catch(e){$('sea').textContent='Нет данных о море'}
+}
+
+$('wf').src='https://embed.windy.com/embed2.html?lat='+LAT+'&lon='+LON+'&zoom=8&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=m%2Fs&metricTemp=%C2%B0C';
+
+// ---------- камеры ----------
+// type: 'iframe' — показывать страницу камеры прямо в окне; 'hls' — прямой поток .m3u8;
+//        'link' — только кнопка «открыть на сайте»
+// link — страница-источник: всегда доступна кнопкой «Открыть на сайте» под плеером,
+//        если встроенное окно пустое (сайт запретил встраивание) или трансляция недоступна.
+const PATROKHL='https://web-cams.ru/web-kamera-buhta-patrokl-vladivostok/';
+const CAMS=[
+ {name:'Патрокл · камера 1', type:'iframe', src:PATROKHL, off:-290},
+ {name:'Патрокл · камера 2', type:'iframe', src:PATROKHL, off:-575},
+ {name:'Золотой мост · панорама', type:'iframe', src:'https://web-cams.ru/web-kamera-zolotoy-most-vladivostok/', off:0},
+ {name:'Босфор Восточный',        type:'iframe', src:'https://web-cams.ru/web-kamera-proliv-bosfor-vostochnyy-vladivostok/', off:0}
+];
+let hls=null;
+function openCam(i){
+  [...$('tabs').children].forEach((b,k)=>b.setAttribute('aria-pressed',k===i));
+  const c=CAMS[i], v=$('view'); v.innerHTML=''; v.classList.remove('cam'); v.style.cssText=''; if(hls){hls.destroy();hls=null}
+  if(c.type==='iframe'){
+    v.classList.add('cam');
+    let off=c.off; try{const sv=localStorage.getItem('camoff_'+i); if(sv!=null)off=+sv}catch(e){}
+    v.innerHTML=`<iframe src="${c.src}" style="height:900px;margin-top:${off}px" allowfullscreen referrerpolicy="no-referrer" scrolling="no"></iframe>
+      <div class="camadj"><button data-d="-20" title="Показать выше">▲</button><button data-d="20" title="Показать ниже">▼</button><button data-d="0" title="Сбросить">⟲</button></div>`;
+    const ifr=v.querySelector('iframe');
+    v.querySelectorAll('.camadj button').forEach(b=>b.onclick=()=>{
+      let mt=parseFloat(ifr.style.marginTop)||0;
+      mt=b.dataset.d==='0'?c.off:mt+(+b.dataset.d);
+      ifr.style.marginTop=mt+'px';
+      try{localStorage.setItem('camoff_'+i,mt)}catch(e){}
+    });
+    $('cnote').innerHTML=`Настройте кадр кнопками ▲▼ (запомнится на этом устройстве). Для запуска нажмите ▶ в окне. Если чёрный экран — <a href="${c.src}" target="_blank" rel="noopener" style="color:var(--sea)">открыть на сайте</a>.`;
+  }
+  else if(c.type==='hls'){
+    const vid=document.createElement('video');vid.controls=true;vid.autoplay=true;vid.muted=true;vid.playsInline=true;v.appendChild(vid);
+    if(vid.canPlayType('application/vnd.apple.mpegurl'))vid.src=c.src;
+    else{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13';
+      s.onload=()=>{hls=new Hls();hls.loadSource(c.src);hls.attachMedia(vid)};document.head.appendChild(s)}
+    $('cnote').textContent='';
+  } else {
+    v.innerHTML=`<a href="${c.src}" target="_blank" rel="noopener">Открыть камеру «${c.name}»</a>`;
+    $('cnote').textContent='Трансляция открывается на сайте-источнике. Если не грузится, включите или выключите VPN.';
+  }
+}
+$('tabs').innerHTML=CAMS.map((c,i)=>`<button aria-pressed="false" data-i="${i}">${c.name}</button>`).join('');
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(b)openCam(+b.dataset.i)};
+$('camb').onclick=()=>{$('dlg').showModal();openCam(0)};
+$('cx').onclick=()=>$('dlg').close();
+$('dlg').addEventListener('close',()=>{$('view').innerHTML='';if(hls){hls.destroy();hls=null}});
+$('dlg').addEventListener('click',e=>{if(e.target===$('dlg'))$('dlg').close()});
+
+const run=()=>{loadWeather().then(()=>{$('err').textContent=''}).catch(e=>$('err').textContent='Прогноз не загрузился: '+e.message);loadSea()};
+run(); setInterval(run,15*60*1000);
+</script>
+</body>
+</html>
