@@ -127,6 +127,12 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 </dialog>
 
 <script>
+// диагностика: отдельный блок, чтобы сработал даже при синтаксической ошибке в основном скрипте
+window.addEventListener('DOMContentLoaded',function(){var e=document.getElementById('err');if(e&&!e.textContent)e.textContent='Скрипт запущен, загружаю…'});
+window.onerror=function(m,s,l){var e=document.getElementById('err');if(e)e.textContent='Ошибка: '+m+' (строка '+l+')'};
+window.addEventListener('unhandledrejection',function(ev){var e=document.getElementById('err');if(e)e.textContent='Ошибка: '+(ev.reason&&ev.reason.message||ev.reason)});
+</script>
+<script>
 const $=id=>document.getElementById(id);
 const PLACES={vladivostok:{n:'Владивосток',la:43.1155,lo:131.8855},
  terney:{n:'Терней',la:45.03,lo:136.6},
@@ -176,9 +182,19 @@ async function loadWeather(){
   const base='https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LON+'&timezone='+TZ+'&wind_speed_unit=ms&forecast_days=7'+
   '&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m,wind_gusts_10m,relative_humidity_2m,pressure_msl,weather_code'+
   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_gusts_10m_max';
-  const res=await Promise.allSettled(MODELS.map(m=>fetch(base+'&models='+m).then(r=>r.json())));
-  const js=res.map(x=>x.status==='fulfilled'&&x.value&&x.value.hourly?x.value:null).filter(Boolean);
-  if(js.length<2)throw new Error('модели не ответили');
+  const getModel=async m=>{
+    const resp=await fetch(base+(m?'&models='+m:''));
+    const j=await resp.json().catch(()=>null);
+    if(!resp.ok||!j||!j.hourly)throw new Error((m||'обычный запрос')+': '+((j&&j.reason)||('HTTP '+resp.status)));
+    return j;
+  };
+  const res=await Promise.allSettled(MODELS.map(getModel));
+  let js=res.filter(x=>x.status==='fulfilled').map(x=>x.value);
+  if(js.length<1){
+    // запасной вариант: один обычный запрос без выбора моделей
+    try{js=[await getModel('')]}
+    catch(e){throw new Error((res[0]&&res[0].reason?res[0].reason.message:'нет ответа')+' | '+e.message)}
+  }
   const time=js[0].hourly.time, H={time};
   HKEYS.forEach(k=>{H[k]=time.map((_,i)=>cons(js.map(j=>j.hourly[k]&&j.hourly[k][i])))});
   H.wind_direction_10m=time.map((_,i)=>cdir(js.map(j=>j.hourly.wind_direction_10m&&j.hourly.wind_direction_10m[i])));
@@ -299,7 +315,7 @@ $('cx').onclick=()=>$('dlg').close();
 $('dlg').addEventListener('close',()=>{$('view').innerHTML='';if(hls){hls.destroy();hls=null}});
 $('dlg').addEventListener('click',e=>{if(e.target===$('dlg'))$('dlg').close()});
 
-const run=()=>{loadWeather().catch(e=>$('err').textContent='Прогноз не загрузился: '+e.message);loadSea()};
+const run=()=>{loadWeather().then(()=>{$('err').textContent=''}).catch(e=>$('err').textContent='Прогноз не загрузился: '+e.message);loadSea()};
 run(); setInterval(run,15*60*1000);
 </script>
 </body>
