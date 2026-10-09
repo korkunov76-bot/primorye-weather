@@ -127,6 +127,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 </dialog>
 
 <script>
+const $=id=>document.getElementById(id);
 const PLACES={vladivostok:{n:'Владивосток',la:43.1155,lo:131.8855},
  terney:{n:'Терней',la:45.03,lo:136.6},
  trio:{n:'Бухта Триозерье',la:42.745,lo:133.229}};
@@ -143,7 +144,6 @@ if(window.AndroidBridge){
   $('notif').onclick=()=>AndroidBridge.openNotifSettings();
   try{ if(!AndroidBridge.notifEnabled()) $('notif').textContent='🔕 Уведомления выкл.' }catch(e){}
 } else { $('notif').style.display='none' }
-const $=id=>document.getElementById(id);
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
 const WMO={0:['☀️','Ясно'],1:['🌤️','Малооблачно'],2:['⛅','Переменная облачность'],3:['☁️','Пасмурно'],45:['🌫️','Туман'],48:['🌫️','Изморозь'],
 51:['🌦️','Морось'],53:['🌦️','Морось'],55:['🌧️','Сильная морось'],56:['🌧️','Ледяная морось'],57:['🌧️','Ледяная морось'],
