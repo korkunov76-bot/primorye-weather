@@ -149,7 +149,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 18 · 09.10.2026</div>
+  <div class="note">Версия страницы: 18.1 · 09.10.2026</div>
 </dialog>
 
 <script>
@@ -171,6 +171,8 @@ document.getElementById('placename').textContent=PLACE.n;
 if(Q!=='vladivostok')document.getElementById('back').hidden=false;
 document.querySelectorAll('.locs button').forEach(b=>b.onclick=()=>{location.search='loc='+b.dataset.loc});
 
+// запас под строку состояния и кнопки навигации, пока в приложении старая версия Kotlin (новая задаёт отступы сама)
+if(window.AndroidBridge&&!AndroidBridge.openAppSettings){document.body.style.paddingTop='40px';document.body.style.paddingBottom='76px'}
 // кнопка системных настроек (в браузере без APK скрыта)
 if(window.AndroidBridge&&AndroidBridge.openAppSettings){ $('sysb').onclick=()=>{try{AndroidBridge.openAppSettings()}catch(e){}} }
 else { $('sysb').style.display='none' }
@@ -205,19 +207,24 @@ const DKEYS=['temperature_2m_max','temperature_2m_min','precipitation_sum','prec
 // запросы через нативный мост приложения (обходит ограничения WebView); в обычном браузере — обычный fetch
 let _cbId=0; const _cbs={};
 window.__nativeCb=(id,res)=>{const f=_cbs[id];if(f){delete _cbs[id];f(JSON.parse(res))}};
+const browserGet=url=>fetch(url).then(async r=>({ok:r.ok,status:r.status,json:await r.json().catch(()=>null)}));
 function getJson(url){
   if(window.AndroidBridge&&AndroidBridge.httpGet){
     return new Promise((resolve,reject)=>{
       const id=++_cbId;
       _cbs[id]=o=>{
-        if(o.status===0)return reject(new Error('сеть: '+o.error));
+        if(o.status===0){
+          // адрес не входит в список моста (старая версия приложения) — пробуем обычный запрос страницы
+          if(/SecurityException/.test(o.error||''))return browserGet(url).then(resolve,e=>reject(new Error('сеть: '+e.message)));
+          return reject(new Error('сеть: '+o.error));
+        }
         let j=null;try{j=JSON.parse(o.body)}catch(e){}
         resolve({ok:o.status>=200&&o.status<300,status:o.status,json:j});
       };
       AndroidBridge.httpGet(id,url);
     });
   }
-  return fetch(url).then(async r=>({ok:r.ok,status:r.status,json:await r.json().catch(()=>null)}));
+  return browserGet(url);
 }
 
 async function loadOpenMeteo(){
