@@ -75,6 +75,24 @@ class MainActivity : Activity() {
             )
         }
 
+        // Версия приложения (для окна настроек)
+        @JavascriptInterface
+        fun appVersion(): String {
+            return try {
+                packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+        }
+
+        // Проверка утреннего уведомления: запускает тот же получатель, что и будильник
+        @JavascriptInterface
+        fun testNotification() {
+            val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+            val weekend = day == java.util.Calendar.SATURDAY || day == java.util.Calendar.SUNDAY
+            sendBroadcast(Intent(this@MainActivity, AlarmReceiver::class.java).putExtra("weekend", weekend))
+        }
+
         // Запрос погоды средствами Android (обходит ограничения WebView).
         // Разрешены только адреса Open-Meteo по https.
         @JavascriptInterface
