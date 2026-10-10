@@ -98,6 +98,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 .setrow select{background:#0a1a24;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:14px Onest,sans-serif}
 .setrow input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
 #sdlg .tabs{margin-bottom:0}
+.setrow label.chk{flex-wrap:nowrap;align-items:flex-start}.setrow label.chk input{flex:none;margin-top:2px}.setrow label.chk span{flex:1;min-width:0}
 #ptr{position:fixed;top:var(--ptrtop,0px);left:50%;transform:translate(-50%,-60px);z-index:200;background:#10303f;color:var(--fog);border:1px solid var(--sea);border-radius:20px;padding:8px 18px;font-size:13px;opacity:0;pointer-events:none;white-space:nowrap}
 .mag{margin-top:6px}
 .kpnow{display:flex;gap:6px 18px;flex-wrap:wrap;color:var(--mute);font-size:14px}
@@ -160,14 +161,15 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="dh"><b>Настройки приложения</b><button id="sx" aria-label="Закрыть">✕</button></div>
   <div class="setrow"><span>Источник прогноза</span>
     <div class="tabs"><button data-s="om" aria-pressed="false">Open-Meteo (нужен VPN)</button><button data-s="met" aria-pressed="false">MET Norway (без VPN)</button></div></div>
-  <div class="setrow"><label><input type="checkbox" id="s_al"> Предупреждения о сильном ветре, грозе и волнении</label>
+  <div class="setrow"><label class="chk"><input type="checkbox" id="s_al"><span>Предупреждения о сильном ветре, грозе и волнении</span></label>
     <label>Порог ветра (порывы), м/с <select id="s_wind"><option>10</option><option>12</option><option>15</option><option>18</option><option>20</option><option>25</option></select></label></div>
   <div class="setrow" id="s_sys"><span id="s_notif"></span>
-    <div class="tabs"><button id="s_nbtn">Уведомления…</button><button id="s_abtn">Точные будильники…</button></div></div>
+    <div class="tabs"><button id="s_nbtn">Уведомления…</button><button id="s_abtn">Точные будильники…</button><button id="s_test">Проверить уведомление</button></div>
+    <div class="note" id="s_exact" hidden>Точные будильники не разрешены: утреннее уведомление может прийти с задержкой. Нажмите «Точные будильники…» и разрешите.</div></div>
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 19 · 10.10.2026</div>
+  <div class="note">Версия страницы: 19.1 · 11.10.2026<span id="s_appver"></span></div>
 </dialog>
 
 <script>
@@ -646,6 +648,8 @@ function refreshSettings(){
     let t='';
     try{t='Уведомления: '+(AndroidBridge.notifEnabled()?'включены':'выключены')+' · точные будильники: '+(AndroidBridge.exactAlarms()?'разрешены':'не разрешены')}catch(e){}
     $('s_notif').textContent=t; $('s_sys').style.display='';
+    try{$('s_exact').hidden=!!AndroidBridge.exactAlarms()}catch(e){}
+    try{if(AndroidBridge.appVersion){const v=AndroidBridge.appVersion();$('s_appver').textContent=v?' · приложение '+v:''}}catch(e){}
   } else { $('s_sys').style.display='none' }
 }
 $('setb').onclick=()=>{refreshSettings();$('s_note').textContent='';$('sdlg').showModal()};
@@ -658,6 +662,12 @@ document.querySelectorAll('#sdlg [data-s]').forEach(b=>b.onclick=()=>{
 $('s_al').onchange=()=>{setCfg({alerts:$('s_al').checked});run()};
 $('s_wind').onchange=()=>{setCfg({wind:Number($('s_wind').value)});run()};
 $('s_nbtn').onclick=()=>{try{AndroidBridge.openNotifSettings()}catch(e){}};
+$('s_test').onclick=()=>{
+  try{
+    if(AndroidBridge.testNotification){AndroidBridge.testNotification();$('s_note').textContent='Уведомление запрошено: оно придёт через несколько секунд (смотрите шторку).'}
+    else $('s_note').textContent='Для проверки нужна новая версия приложения (файл MainActivity.kt).';
+  }catch(e){$('s_note').textContent='Не удалось запросить уведомление.'}
+};
 $('s_abtn').onclick=()=>{try{AndroidBridge.openAlarmSettings()}catch(e){}};
 $('s_diag').onclick=async()=>{
   const out=$('s_diagout'); out.textContent='Проверяю…';
