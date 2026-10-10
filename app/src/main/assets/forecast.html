@@ -20,7 +20,7 @@ h2{font:500 13px Onest,sans-serif;color:var(--mute);margin:28px 0 10px}
 .meta{display:grid;grid-template-columns:repeat(2,auto);gap:4px 22px;color:var(--mute);font-size:14px;margin-top:8px}
 .meta b{color:var(--fog);font-weight:500}
 .temp{position:relative;display:inline-block;z-index:1}
-.bgico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:clamp(150px,36vw,240px);height:clamp(150px,36vw,240px);opacity:.55;z-index:0;pointer-events:none}.bgico svg{width:100%;height:100%;display:block}
+.bgico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:clamp(150px,36vw,240px);height:clamp(150px,36vw,240px);opacity:.4;z-index:0;pointer-events:none}.bgico svg{width:100%;height:100%;display:block}
 .days3{display:flex;flex-direction:column}
 .d3t{font-size:13px;color:var(--mute);margin:14px 0 3px;text-align:center}
 .d3t b{color:var(--fog);font-weight:500;font-size:15px}
@@ -149,7 +149,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 18.1 · 09.10.2026</div>
+  <div class="note">Версия страницы: 18.2 · 09.10.2026</div>
 </dialog>
 
 <script>
@@ -349,13 +349,14 @@ function sunTimes(ymd){
 }
 
 // ---- фоновый значок погоды (SVG) ----
-const SVGDEFS='<defs><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#ff8f3f"/></linearGradient><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f7f9"/><stop offset="1" stop-color="#9db8c4"/></linearGradient><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c9d1"/><stop offset="1" stop-color="#6f8795"/></linearGradient></defs>';
+const SVGDEFS='<defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f8fb"/><stop offset="1" stop-color="#a9c3d3"/></linearGradient><linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#ff8f3f"/></linearGradient><linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f7f9"/><stop offset="1" stop-color="#9db8c4"/></linearGradient><linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c9d1"/><stop offset="1" stop-color="#6f8795"/></linearGradient></defs>';
 const SUN_SVG='<circle cx="50" cy="50" r="30" fill="url(#gs)" opacity=".22"/>'+[0,45,90,135,180,225,270,315].map(a=>'<line x1="50" y1="14" x2="50" y2="23" stroke="#ffc15e" stroke-width="3.5" stroke-linecap="round" transform="rotate('+a+' 50 50)"/>').join('')+'<circle cx="50" cy="50" r="17" fill="url(#gs)"/>';
 const CLOUD_SVG=(dx,dy,g)=>'<path transform="translate('+dx+' '+dy+')" fill="url(#'+(g||'gc')+')" d="M26 70a13 13 0 0 1 0-26a18 18 0 0 1 34-6a15 15 0 0 1 4 32z"/>';
-function bgIcon(c){
+const MOON_SVG='<circle cx="50" cy="50" r="34" fill="#cfe3ee" opacity=".12"/><path d="M46.4 20.2A30 30 0 1 0 78.9 58.1A25 25 0 0 1 46.4 20.2Z" fill="url(#gm)"/><circle cx="76" cy="30" r="2" fill="#e8f1f6"/><circle cx="84" cy="44" r="1.5" fill="#e8f1f6"/>';
+function bgIcon(c,night){
   let b;
-  if(c===0||c===1)b=SUN_SVG;
-  else if(c===2)b='<g transform="translate(14 -12) scale(.82)">'+SUN_SVG+'</g>'+CLOUD_SVG(0,8);
+  if(c===0||c===1)b=night?MOON_SVG:SUN_SVG;
+  else if(c===2)b='<g transform="translate(14 -12) scale(.82)">'+(night?MOON_SVG:SUN_SVG)+'</g>'+CLOUD_SVG(0,8);
   else if(c===3)b=CLOUD_SVG(14,-12,'gd')+CLOUD_SVG(-4,6);
   else if(c===45||c===48)b=CLOUD_SVG(0,-10,'gd')+'<g stroke="#bcd0d8" stroke-width="4" stroke-linecap="round"><line x1="20" y1="70" x2="80" y2="70"/><line x1="28" y1="80" x2="88" y2="80"/><line x1="20" y1="90" x2="72" y2="90"/></g>';
   else if(c>=95)b=CLOUD_SVG(0,-8,'gd')+'<path d="M53 62L41 80H52L45 96L64 74H54Z" fill="#ffd36b"/>';
@@ -389,7 +390,7 @@ function renderWeather(H,D,savedAt,fromCache,srcName){
   const c={time:time[s0]}; [...HKEYS,'wind_direction_10m','weather_code'].forEach(k=>c[k]=H[k][s0]);
   const h=H, [ic,ds]=w(c.weather_code);
   $('t').textContent=sign(c.temperature_2m).replace('°','');
-  $('desc').textContent=ds; $('bg').innerHTML=bgIcon(c.weather_code);
+  $('desc').textContent=ds;
   $('fl').textContent=sign(c.apparent_temperature);
   $('wd').textContent=dir(c.wind_direction_10m)+' '+r(c.wind_speed_10m)+' м/с'+(c.wind_gusts_10m!=null?', порывы '+r(c.wind_gusts_10m):'');
   $('hm').textContent=r(c.relative_humidity_2m)+'%';
@@ -398,21 +399,28 @@ function renderWeather(H,D,savedAt,fromCache,srcName){
   $('upd').textContent=(fromCache?'Из кеша, получено '+ago(savedAt)+' · ':'Обновлено '+hmNow+' (вл.) · ')+'источник: '+(srcName==='met'?'MET Norway':'Open-Meteo');
   const day0=h.time[s0].slice(0,10), sun=sunTimes(day0);
   $('sr').textContent=sun?sun.rise:'—'; $('ss').textContent=sun?sun.set:'—';
+  const hmNowStr=nowStr.slice(11,16);
+  $('bg').innerHTML=bgIcon(c.weather_code,!!sun&&(hmNowStr<sun.rise||hmNowStr>=sun.set));
   $('alerts').innerHTML=buildAlerts(H,s0,day0);
 
   // 3 дня: строка = один день, часы 00…21 с шагом 3 ч, в начале строки дата; прошедшие часы пустые
   const d0=h.time[s0].slice(0,10);
   const[y0,m0,dd0]=d0.split('-').map(Number);
-  $('hours').innerHTML=[0,1,2].map(d=>{
+  const dayBlocks=[];
+  for(let d=0;d<5&&dayBlocks.length<3;d++){
     const dt=new Date(y0,m0-1,dd0+d), ds=dt.getFullYear()+'-'+p2(dt.getMonth()+1)+'-'+p2(dt.getDate());
+    let shown=0;
     const cells=[0,3,6,9,12,15,18,21].map(hh=>{
       const i=h.time.indexOf(ds+'T'+p2(hh)+':00');
       if(i<0)return '<div class="h"></div>';
-      const past=h.time[i]<=nowStr?' past':'';
-      return `<div class="h${past}"><small>${p2(hh)}:00</small>
+      const isPast=h.time[i]<=nowStr; if(!isPast)shown++;
+      return `<div class="h${isPast?' past':''}"><small>${p2(hh)}:00</small>
         <div class="i">${w(h.weather_code[i])[0]}</div><b>${sign(h.temperature_2m[i])}</b></div>`}).join('');
+    if(!shown)continue;
     const name=d===0?'Сегодня':d===1?'Завтра':wdOf(ds);
-    return `<div class="d3t"><b>${name}</b> · ${ds.slice(8,10)}.${ds.slice(5,7)}</div><div class="d3r">${cells}</div>`}).join('');
+    dayBlocks.push(`<div class="d3t"><b>${name}</b> · ${ds.slice(8,10)}.${ds.slice(5,7)}</div><div class="d3r">${cells}</div>`);
+  }
+  $('hours').innerHTML=dayBlocks.join('');
 
   // окна: от текущего времени на сутки вперёд, блоки по 2 часа
   const startH=2*Math.floor(+nowStr.slice(11,13)/2);
