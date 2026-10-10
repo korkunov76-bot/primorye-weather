@@ -98,12 +98,27 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 .setrow select{background:#0a1a24;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:14px Onest,sans-serif}
 .setrow input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
 #sdlg .tabs{margin-bottom:0}
+#ptr{position:fixed;top:var(--ptrtop,0px);left:50%;transform:translate(-50%,-60px);z-index:200;background:#10303f;color:var(--fog);border:1px solid var(--sea);border-radius:20px;padding:8px 18px;font-size:13px;opacity:0;pointer-events:none;white-space:nowrap}
+.mag{margin-top:6px}
+.kpnow{display:flex;gap:6px 18px;flex-wrap:wrap;color:var(--mute);font-size:14px}
+.kpnow b{font-weight:500}
+.kpday{margin-top:14px}
+.kpday .t{font-size:13px;color:var(--mute);margin-bottom:6px}
+.kpday .t b{color:var(--fog);font-weight:500}
+.kpbars{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;height:96px}
+.kpb{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;border-radius:4px}
+.kpb i{display:block;width:100%;border-radius:4px 4px 0 0;min-height:3px}
+.kpb span{font-size:11px;margin-bottom:2px;color:var(--fog)}
+.kpb.pred i{opacity:.55;outline:1px dashed rgba(255,255,255,.4)}
+.kpb.cur{box-shadow:0 0 0 1px var(--sea)}
+.kpl{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;font-size:11px;color:var(--mute);text-align:center;margin-top:3px}
 </style>
 </head>
 <body>
 <div class="top"><h1 id="placename">Владивосток</h1></div>
 <div class="btns"><button class="camb" id="camb">📷 Камеры онлайн</button><button class="camb" id="setb">⚙️ Настройки приложения</button><button class="camb" id="sysb">📱 Системные настройки</button></div>
 <button id="back" onclick="location.href=location.pathname" title="К прогнозу Владивостока" hidden>←</button>
+<div id="ptr"></div>
 <div id="err"></div>
 <div id="alerts"></div>
 <section class="now">
@@ -116,20 +131,23 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
     <div class="meta"><span>Ощущается <b id="fl">–</b></span><span>Ветер <b id="wd">–</b></span>
     <span>Влажность <b id="hm">–</b></span><span>Давление <b id="pr">–</b></span>
     <span>Восход <b id="sr">–</b></span><span>Закат <b id="ss">–</b></span>
+    <span>Магн. поле <b id="kpn">–</b></span>
     </div></div>
 </section>
 
 <h2>Сутки по окнам, сейчас → +24 ч</h2><div class="scroll"><table id="win"></table></div>
-<div class="note">мм — осадки в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
+<div class="note" id="winnote">мм — осадки в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
 <h2>Прогноз на 3 дня, каждые 3 часа</h2><div class="days3" id="hours"></div>
 <h2>Прогноз на неделю</h2><div id="days"></div>
 <h2>Море и прогноз для моряков</h2><div id="salert"></div><div class="sea" id="sea">–</div>
 <div class="scroll"><table id="wavet"></table></div>
 <div class="note">Волна — высота значительной волны (модель Open-Meteo Marine, шаг сетки около 25 км), «откуда» — направление, откуда идёт волна. Температура воды — по той же модели; у берега и в бухтах возможны отличия. Цвет высоты волны: зелёный до 1,5 м, жёлтый от 1,5 м, красный от 2,5 м.</div>
+<h2>Магнитные бури (индекс Kp)</h2><div id="malert"></div><div class="mag" id="mag">–</div>
+<div class="note" id="magnote">Kp — планетарный индекс геомагнитной активности, 3-часовые интервалы, время местное (начало интервала). Kp 0–4 — спокойно, 5 — малая буря (G1), 6 — умеренная (G2), 7 — сильная (G3), 8 — жёсткая (G4), 9 — экстремальная (G5). Светлые столбцы с пунктиром — прогноз.</div>
 <h2>Карта ветра</h2>
 <div id="map"><iframe id="wf" title="Карта ветра Windy" allowfullscreen></iframe></div>
 <div class="note">Модель ECMWF, поверхность: цвет — скорость ветра, белые штрихи — направление. Анимация прогноза на неделю — кнопка ▶ в левом нижнем углу карты.</div>
-<footer>Данные: Open-Meteo, консенсус моделей ECMWF · GFS · ICON · JMA · ARPEGE · CMA · GEM (без крайних значений); карта — Windy.com (ECMWF). Прогноз синоптиков: <a href="https://www.primgidromet.ru/" target="_blank" rel="noopener" style="color:var(--sea)">Примгидромет</a>. <span id="upd"></span></footer>
+<footer>Данные: Open-Meteo (консенсус моделей ECMWF · GFS · ICON · JMA · ARPEGE · CMA · GEM) или MET Norway; магнитные бури — NOAA SWPC (запасной источник — GFZ Potsdam); карта — Windy.com (ECMWF). Прогноз синоптиков: <a href="https://www.primgidromet.ru/" target="_blank" rel="noopener" style="color:var(--sea)">Примгидромет</a>. <span id="upd"></span></footer>
 
 <dialog id="dlg">
   <div class="dh"><b>Камеры Владивостока</b><button id="cx" aria-label="Закрыть">✕</button></div>
@@ -149,7 +167,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 18.2 · 09.10.2026</div>
+  <div class="note">Версия страницы: 19 · 10.10.2026</div>
 </dialog>
 
 <script>
@@ -172,7 +190,7 @@ if(Q!=='vladivostok')document.getElementById('back').hidden=false;
 document.querySelectorAll('.locs button').forEach(b=>b.onclick=()=>{location.search='loc='+b.dataset.loc});
 
 // запас под строку состояния и кнопки навигации, пока в приложении старая версия Kotlin (новая задаёт отступы сама)
-if(window.AndroidBridge&&!AndroidBridge.openAppSettings){document.body.style.paddingTop='40px';document.body.style.paddingBottom='76px'}
+if(window.AndroidBridge&&!AndroidBridge.openAppSettings){document.body.style.paddingTop='40px';document.body.style.paddingBottom='76px';document.documentElement.style.setProperty('--ptrtop','40px')}
 // кнопка системных настроек (в браузере без APK скрыта)
 if(window.AndroidBridge&&AndroidBridge.openAppSettings){ $('sysb').onclick=()=>{try{AndroidBridge.openAppSettings()}catch(e){}} }
 else { $('sysb').style.display='none' }
@@ -424,7 +442,9 @@ function renderWeather(H,D,savedAt,fromCache,srcName){
 
   // окна: от текущего времени на сутки вперёд, блоки по 2 часа
   const startH=2*Math.floor(+nowStr.slice(11,13)/2);
-  let rows='<tr><th>Окно</th><th></th><th>t, °C</th><th>мм</th><th>м/с</th><th>порыв</th><th>вл.</th></tr>';
+  const noG=H.wind_gusts_10m.every(v=>v==null);
+  $('winnote').textContent='мм — осадки в окне, м/с — средний ветер,'+(noG?'':' порыв — самый сильный порыв,')+' вл. — влажность'+(noG?' (этот источник не даёт порывы ветра)':'');
+  let rows='<tr><th>Окно</th><th></th><th>t, °C</th><th>мм</th><th>м/с</th>'+(noG?'':'<th>порыв</th>')+'<th>вл.</th></tr>';
   for(let wI=0;wI<12;wI++){
     const idx=[s0+2*wI,s0+2*wI+1].filter(i=>i<h.time.length);
     if(!idx.length)break;
@@ -435,7 +455,7 @@ function renderWeather(H,D,savedAt,fromCache,srcName){
     const gm=G.length?Math.max(...G):null;
     rows+=`<tr><td>${p2(a)}–${p2(b)}</td><td class="e">${w(worst)[0]}</td><td>${r(Math.min(...T))===r(Math.max(...T))?r(Math.min(...T))+'°':r(Math.min(...T))+'…'+r(Math.max(...T))+'°'}</td>
     <td>${g('precipitation').reduce((x,y)=>x+y,0).toFixed(1)}</td><td>${r(avg(g('wind_speed_10m')))}</td>
-    <td class="gust" style="color:${gm==null?'inherit':gcol(gm)}">${gm==null?'—':r(gm)}</td><td>${r(avg(g('relative_humidity_2m')))}%</td></tr>`;
+    ${noG?'':`<td class="gust" style="color:${gm==null?'inherit':gcol(gm)}">${gm==null?'—':r(gm)}</td>`}<td>${r(avg(g('relative_humidity_2m')))}%</td></tr>`;
   }
   $('win').innerHTML=rows;
 
@@ -469,6 +489,67 @@ async function loadWeather(){
   renderWeather(res.H,res.D,t,false,src);
   __rendered=true;
   return note;
+}
+
+// ---- магнитные бури (индекс Kp): NOAA SWPC, запасной источник GFZ Potsdam ----
+const KP_FC='https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json';
+const KP_OBS='https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+function parseTs(t){let x=String(t).trim().replace(' ','T');if(!/[zZ]$|[+-]\d\d:?\d\d$/.test(x))x+='Z';return Date.parse(x)}
+function parseKp(j){
+  if(!Array.isArray(j)||!j.length)return [];
+  let rows;
+  if(Array.isArray(j[0])){
+    const hd=j[0].map(x=>String(x).toLowerCase()), it=hd.indexOf('time_tag'), ik=hd.indexOf('kp')>=0?hd.indexOf('kp'):hd.indexOf('kp_index'), io=hd.indexOf('observed');
+    rows=j.slice(1).map(r=>({t:r[it],k:r[ik],o:io>=0?r[io]:null}));
+  }else rows=j.map(o=>({t:o.time_tag,k:o.kp!==undefined?o.kp:(o.Kp!==undefined?o.Kp:o.kp_index),o:o.observed||null}));
+  return rows.filter(r=>r.k!=null&&r.k!=='').map(r=>({t:parseTs(r.t),kp:Number(r.k),kind:r.o||'observed'})).filter(p=>isFinite(p.t)&&isFinite(p.kp)).sort((a,b)=>a.t-b.t);
+}
+function parseGfz(j){
+  if(!j||!Array.isArray(j.datetime)||!Array.isArray(j.Kp))return [];
+  return j.datetime.map((t,i)=>({t:parseTs(t),kp:Number(j.Kp[i]),kind:'observed'})).filter(p=>isFinite(p.t)&&isFinite(p.kp)).sort((a,b)=>a.t-b.t);
+}
+const kpLvl=k=>k>=8.99?5:k>=7.99?4:k>=6.99?3:k>=5.99?2:k>=4.99?1:0;
+const kpCol=k=>k>=7.99?'#ff3b30':k>=6.99?'#ff5a4d':k>=5.99?'#ff8a3c':k>=4.99?'#ffb02e':k>=3.99?'#d9d65a':'#6fd08c';
+const kpName=k=>['спокойно','малая буря (G1)','умеренная буря (G2)','сильная буря (G3)','жёсткая буря (G4)','экстремальная буря (G5)'][kpLvl(k)]||'—';
+function drawMag(pts,savedAt,fromCache,src){
+  const now=Date.now(), loc=ms=>new Date(ms+10*3600e3);
+  const dayKey=ms=>{const d=loc(ms);return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())};
+  const hr=ms=>loc(ms).getUTCHours();
+  const whenOf=ms=>(dayKey(ms)===dayKey(now)?'сегодня':wdOf(dayKey(ms)+'T00:00'))+' '+p2(hr(ms))+':00';
+  let cur=null; pts.forEach(p=>{if(p.t<=now)cur=p});
+  const fut=pts.filter(p=>p.t+3*3600e3>now);
+  let mx=null; fut.forEach(p=>{if(!mx||p.kp>mx.kp)mx=p});
+  $('kpn').textContent=cur?'Kp '+cur.kp.toFixed(1):'—';
+  const today=dayKey(now), byDay={};
+  pts.forEach(p=>{const d=dayKey(p.t);if(d>=today){(byDay[d]=byDay[d]||new Array(8).fill(null))[Math.floor(((hr(p.t)+23)%24)/3)]=p}});
+  const days=Object.keys(byDay).sort().slice(0,3);
+  const hrs=['01','04','07','10','13','16','19','22'];
+  let html='<div class="kpnow">'+(cur?'<span>Сейчас: <b style="color:'+kpCol(cur.kp)+'">Kp '+cur.kp.toFixed(1)+'</b> — '+kpName(cur.kp)+'</span>':'')+
+    (mx?'<span>Максимум впереди: <b style="color:'+kpCol(mx.kp)+'">Kp '+mx.kp.toFixed(1)+'</b> · '+whenOf(mx.t)+'</span>':'')+'</div>';
+  days.forEach((d,di)=>{
+    html+='<div class="kpday"><div class="t"><b>'+(di===0?'Сегодня':wdOf(d+'T00:00'))+'</b> · '+d.slice(8,10)+'.'+d.slice(5,7)+'</div><div class="kpbars">'+
+      byDay[d].map(p=>p?'<div class="kpb'+(p.kind==='predicted'?' pred':'')+(cur&&p.t===cur.t?' cur':'')+'"><span>'+p.kp.toFixed(1).replace('.0','')+'</span><i style="height:'+Math.max(4,p.kp/9*74)+'%;background:'+kpCol(p.kp)+'"></i></div>':'<div class="kpb"></div>').join('')+
+      '</div><div class="kpl">'+hrs.map(h=>'<span>'+h+'</span>').join('')+'</div></div>';
+  });
+  $('mag').innerHTML=html;
+  const cfg=getCfg(), lv=mx?kpLvl(mx.kp):0;
+  $('malert').innerHTML=(cfg.alerts&&lv>=1)?'<div class="alert'+(lv>=3?' storm':'')+'">🧲 Магнитная буря G'+lv+' (Kp '+mx.kp.toFixed(1)+') · '+whenOf(mx.t)+'</div>':'';
+  $('magnote').dataset.src=(fromCache?'кеш, ':'')+(src||'');
+}
+let __magDrawn=false;
+async function loadMag(){
+  const key='mag';
+  if(!__magDrawn){const c=cacheGet(key);if(c&&c.pts&&c.pts.length){try{drawMag(c.pts,c.t,true,c.src);__magDrawn=true}catch(e){}}}
+  let pts=[],src='';
+  try{const o=await getJson(KP_FC);if(o.ok)pts=parseKp(o.json);if(pts.length)src='NOAA SWPC'}catch(e){}
+  if(!pts.length){try{const o=await getJson(KP_OBS);if(o.ok)pts=parseKp(o.json);if(pts.length)src='NOAA SWPC'}catch(e){}}
+  if(!pts.length){try{
+    const iso=ms=>new Date(ms).toISOString().slice(0,19)+'Z', n=Date.now();
+    const o=await getJson('https://kp.gfz-potsdam.de/app/json/?start='+iso(n-3*864e5)+'&end='+iso(n)+'&index=Kp');
+    if(o.ok)pts=parseGfz(o.json);if(pts.length)src='GFZ Potsdam';
+  }catch(e){}}
+  if(pts.length){cachePut(key,{pts:pts,t:Date.now(),src:src});drawMag(pts,Date.now(),false,src);__magDrawn=true}
+  else if(!__magDrawn)$('mag').textContent='Нет данных о магнитном поле: источники недоступны.';
 }
 
 let __seaDrawn=false;
@@ -583,7 +664,8 @@ $('s_diag').onclick=async()=>{
   const tests=[
     ['Open-Meteo (прогноз)','https://api.open-meteo.com/v1/forecast?latitude=43.1&longitude=131.9&current=temperature_2m'],
     ['Open-Meteo (море)','https://marine-api.open-meteo.com/v1/marine?latitude=43.1&longitude=131.9&current=wave_height'],
-    ['MET Norway','https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=43.1155&lon=131.8855']
+    ['MET Norway','https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=43.1155&lon=131.8855'],
+    ['NOAA (магнитные бури)',KP_FC]
   ];
   const lines=[]; let dns=false, ok=0;
   for(const [n,u] of tests){
@@ -602,11 +684,37 @@ $('s_clr').onclick=()=>{
   try{Object.keys(localStorage).filter(k=>k.startsWith('wx:')||k.startsWith('sea:')).forEach(k=>localStorage.removeItem(k))}catch(e){}
   $('s_note').textContent='Сохранённые данные удалены.';
 };
+let lastRun=0;
 const run=()=>{
-  loadWeather().then(note=>{$('err').textContent=note||'';$('setb').style.borderColor=''})
+  lastRun=Date.now();
+  const w=loadWeather().then(note=>{$('err').textContent=note||'';$('setb').style.borderColor=''})
   .catch(e=>{$('err').textContent='Прогноз не загрузился: '+e.message+(__rendered?' · показан сохранённый прогноз':'')+(SOURCE==='om'?' — если нет VPN, выберите MET Norway в «Настройках приложения»':'');$('setb').style.borderColor='var(--buoy)'});
-  loadSea();
+  return Promise.allSettled([w,loadSea(),loadMag()]);
 };
+// обновление свайпом вниз (когда страница прокручена к самому верху)
+(function(){
+  const ptr=$('ptr'), TRIG=110; let y0=null,dy=0,active=false,busy=false;
+  const reset=()=>{ptr.style.transition='transform .2s,opacity .2s';ptr.style.transform='translate(-50%,-60px)';ptr.style.opacity='0';active=false;y0=null;dy=0};
+  document.addEventListener('touchstart',e=>{
+    if(busy||e.touches.length!==1||window.scrollY>0||document.querySelector('dialog[open]')){y0=null;return}
+    y0=e.touches[0].clientY;dy=0;active=false;ptr.style.transition='none';
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(y0==null)return;
+    dy=e.touches[0].clientY-y0;
+    if(dy<=0||window.scrollY>0){if(active)reset();y0=null;return}
+    if(dy>12){active=true;ptr.style.transform='translate(-50%,'+(Math.min(dy*.45,70)-40)+'px)';ptr.style.opacity=String(Math.min(1,dy/(TRIG*.8)));ptr.textContent=dy>=TRIG?'↻ Отпустите — обновить':'↓ Потяните вниз';}
+  },{passive:true});
+  document.addEventListener('touchend',()=>{
+    if(active&&dy>=TRIG&&!busy){
+      busy=true;ptr.style.transition='transform .2s';ptr.style.transform='translate(-50%,10px)';ptr.style.opacity='1';ptr.textContent='Обновляю…';
+      run().then(()=>{ptr.textContent='✓ Обновлено'},()=>{ptr.textContent='Не удалось обновить'}).then(()=>{setTimeout(()=>{busy=false;reset()},900)});
+    }else reset();
+  },{passive:true});
+  document.addEventListener('touchcancel',reset,{passive:true});
+})();
+// автообновление при возврате в приложение, если данные старше 10 минут
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastRun>10*60*1000)run()});
 run(); setInterval(run,15*60*1000);
 </script>
 </body>
