@@ -26,7 +26,13 @@ class MainActivity : Activity() {
     companion object {
         private const val REMOTE_URL = ""
         private const val LOCAL_URL = "file:///android_asset/forecast.html"
-        private val ALLOWED_HOSTS = setOf("api.open-meteo.com", "marine-api.open-meteo.com", "api.met.no")
+        private val ALLOWED_HOSTS = setOf(
+            "api.open-meteo.com",
+            "marine-api.open-meteo.com",
+            "api.met.no",
+            "services.swpc.noaa.gov",
+            "kp.gfz-potsdam.de"
+        )
     }
 
     private lateinit var web: WebView
