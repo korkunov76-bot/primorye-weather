@@ -96,10 +96,14 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 .setrow{margin:14px 0;display:flex;flex-direction:column;gap:8px;font-size:14px}
 .setrow label{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .setrow select{background:#0a1a24;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:14px Onest,sans-serif}
+.setrow input[type=time]{background:#0a1a24;color:var(--fog);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font:14px Onest,sans-serif;color-scheme:dark}
 .setrow input[type=checkbox]{width:20px;height:20px;accent-color:var(--sea)}
 #sdlg .tabs{margin-bottom:0}
 .setrow label.chk{flex-wrap:nowrap;align-items:flex-start}.setrow label.chk input{flex:none;margin-top:2px}.setrow label.chk span{flex:1;min-width:0}
 #ptr{position:fixed;top:var(--ptrtop,0px);left:50%;transform:translate(-50%,-60px);z-index:200;background:#10303f;color:var(--fog);border:1px solid var(--sea);border-radius:20px;padding:8px 18px;font-size:13px;opacity:0;pointer-events:none;white-space:nowrap}
+.kpbadge{align-self:center;border:1px solid var(--line);border-radius:14px;padding:7px 12px;line-height:1.25;cursor:pointer;min-width:112px}
+.kpbadge b{display:block;font-size:17px;font-weight:700}
+.kpbadge small{display:block;color:var(--mute);font-size:12px}
 .mag{margin-top:6px}
 .kpnow{display:flex;gap:6px 18px;flex-wrap:wrap;color:var(--mute);font-size:14px}
 .kpnow b{font-weight:500}
@@ -128,11 +132,12 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
     <button data-loc="terney" title="Прогноз для Тернея">Терней</button>
     <button data-loc="trio" title="Прогноз для бухты Триозерье">Триозерье</button>
   </div>
+  <div class="kpbadge" id="kpbadge" hidden></div>
   <div><div class="desc" id="desc">Загрузка…</div>
     <div class="meta"><span>Ощущается <b id="fl">–</b></span><span>Ветер <b id="wd">–</b></span>
     <span>Влажность <b id="hm">–</b></span><span>Давление <b id="pr">–</b></span>
     <span>Восход <b id="sr">–</b></span><span>Закат <b id="ss">–</b></span>
-    <span>Магн. поле <b id="kpn">–</b></span>
+    
     </div></div>
 </section>
 
@@ -163,13 +168,18 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
     <div class="tabs"><button data-s="om" aria-pressed="false">Open-Meteo (нужен VPN)</button><button data-s="met" aria-pressed="false">MET Norway (без VPN)</button></div></div>
   <div class="setrow"><label class="chk"><input type="checkbox" id="s_al"><span>Предупреждения о сильном ветре, грозе и волнении</span></label>
     <label>Порог ветра (порывы), м/с <select id="s_wind"><option>10</option><option>12</option><option>15</option><option>18</option><option>20</option><option>25</option></select></label></div>
+  <div class="setrow" id="s_notrow" hidden>
+    <label class="chk"><input type="checkbox" id="s_non"><span>Утренний прогноз в уведомлении</span></label>
+    <label>Будни <input type="time" id="s_twd" value="06:00"></label>
+    <label>Выходные <input type="time" id="s_twe" value="07:30"></label>
+  </div>
   <div class="setrow" id="s_sys"><span id="s_notif"></span>
     <div class="tabs"><button id="s_nbtn">Уведомления…</button><button id="s_abtn">Точные будильники…</button><button id="s_test">Проверить уведомление</button></div>
     <div class="note" id="s_exact" hidden>Точные будильники не разрешены: утреннее уведомление может прийти с задержкой. Нажмите «Точные будильники…» и разрешите.</div></div>
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 19.1 · 11.10.2026<span id="s_appver"></span></div>
+  <div class="note">Версия страницы: 20 · 11.10.2026<span id="s_appver"></span></div>
 </dialog>
 
 <script>
@@ -197,7 +207,8 @@ if(window.AndroidBridge&&!AndroidBridge.openAppSettings){document.body.style.pad
 if(window.AndroidBridge&&AndroidBridge.openAppSettings){ $('sysb').onclick=()=>{try{AndroidBridge.openAppSettings()}catch(e){}} }
 else { $('sysb').style.display='none' }
 const WD=['вс','пн','вт','ср','чт','пт','сб'];
-const WMO={0:['☀️','Ясно'],1:['🌤️','Малооблачно'],2:['⛅','Переменная облачность'],3:['☁️','Пасмурно'],45:['🌫️','Туман'],48:['🌫️','Изморозь'],
+const FOG_ICO='<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-.14em" aria-hidden="true"><path d="M7 13a3.5 3.5 0 0 1 .5-6.9A5 5 0 0 1 17 7.5a3 3 0 0 1 .5 5.5z" fill="#c4d3da"/><g stroke="#9fb7c2" stroke-width="1.6" stroke-linecap="round"><line x1="4" y1="16" x2="20" y2="16"/><line x1="6" y1="19" x2="22" y2="19"/><line x1="4" y1="22" x2="16" y2="22"/></g></svg>';
+const WMO={0:['☀️','Ясно'],1:['🌤️','Малооблачно'],2:['⛅','Переменная облачность'],3:['☁️','Пасмурно'],45:[FOG_ICO,'Туман'],48:[FOG_ICO,'Изморозь'],
 51:['🌦️','Морось'],53:['🌦️','Морось'],55:['🌧️','Сильная морось'],56:['🌧️','Ледяная морось'],57:['🌧️','Ледяная морось'],
 61:['🌧️','Небольшой дождь'],63:['🌧️','Дождь'],65:['🌧️','Сильный дождь'],66:['🌨️','Ледяной дождь'],67:['🌨️','Ледяной дождь'],
 71:['🌨️','Небольшой снег'],73:['❄️','Снег'],75:['❄️','Сильный снег'],77:['❄️','Снежная крупа'],
@@ -521,7 +532,8 @@ function drawMag(pts,savedAt,fromCache,src){
   let cur=null; pts.forEach(p=>{if(p.t<=now)cur=p});
   const fut=pts.filter(p=>p.t+3*3600e3>now);
   let mx=null; fut.forEach(p=>{if(!mx||p.kp>mx.kp)mx=p});
-  $('kpn').textContent=cur?'Kp '+cur.kp.toFixed(1):'—';
+  const bd=$('kpbadge');
+  if(cur){bd.hidden=false;bd.style.borderColor=kpCol(cur.kp);bd.innerHTML='<small>Магн. поле</small><b style="color:'+kpCol(cur.kp)+'">🧲 Kp '+cur.kp.toFixed(1)+'</b><small>'+kpName(cur.kp)+'</small>'}else bd.hidden=true;
   const today=dayKey(now), byDay={};
   pts.forEach(p=>{const d=dayKey(p.t);if(d>=today){(byDay[d]=byDay[d]||new Array(8).fill(null))[Math.floor(((hr(p.t)+23)%24)/3)]=p}});
   const days=Object.keys(byDay).sort().slice(0,3);
@@ -644,6 +656,12 @@ function refreshSettings(){
   const c=getCfg();
   document.querySelectorAll('#sdlg [data-s]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===SOURCE)));
   $('s_al').checked=!!c.alerts; $('s_wind').value=String(c.wind);
+  if(window.AndroidBridge&&AndroidBridge.getNotifyConfig){
+    try{
+      const nc=JSON.parse(AndroidBridge.getNotifyConfig()), f=m=>p2(Math.floor(m/60))+':'+p2(m%60);
+      $('s_non').checked=!!nc.on; $('s_twd').value=f(nc.wd); $('s_twe').value=f(nc.we); $('s_notrow').hidden=false;
+    }catch(e){$('s_notrow').hidden=true}
+  }else{$('s_notrow').hidden=true}
   if(window.AndroidBridge&&AndroidBridge.notifEnabled){
     let t='';
     try{t='Уведомления: '+(AndroidBridge.notifEnabled()?'включены':'выключены')+' · точные будильники: '+(AndroidBridge.exactAlarms()?'разрешены':'не разрешены')}catch(e){}
@@ -652,6 +670,7 @@ function refreshSettings(){
     try{if(AndroidBridge.appVersion){const v=AndroidBridge.appVersion();$('s_appver').textContent=v?' · приложение '+v:''}}catch(e){}
   } else { $('s_sys').style.display='none' }
 }
+$('kpbadge').onclick=()=>{$('mag').scrollIntoView({behavior:'smooth',block:'start'})};
 $('setb').onclick=()=>{refreshSettings();$('s_note').textContent='';$('sdlg').showModal()};
 $('sx').onclick=()=>$('sdlg').close();
 $('sdlg').addEventListener('click',e=>{if(e.target===$('sdlg'))$('sdlg').close()});
@@ -661,6 +680,16 @@ document.querySelectorAll('#sdlg [data-s]').forEach(b=>b.onclick=()=>{
 });
 $('s_al').onchange=()=>{setCfg({alerts:$('s_al').checked});run()};
 $('s_wind').onchange=()=>{setCfg({wind:Number($('s_wind').value)});run()};
+const toMin=v=>{const m=/^(\d\d):(\d\d)$/.exec(v||'');return m?Math.min(1439,(+m[1])*60+(+m[2])):null};
+function saveNotify(){
+  const wd=toMin($('s_twd').value), we=toMin($('s_twe').value);
+  if(wd==null||we==null)return;
+  try{
+    AndroidBridge.setNotifyConfig($('s_non').checked,wd,we);
+    $('s_note').textContent=$('s_non').checked?'Сохранено: будни '+$('s_twd').value+', выходные '+$('s_twe').value:'Утренние уведомления выключены.';
+  }catch(e){$('s_note').textContent='Для этой настройки нужна новая версия приложения.'}
+}
+$('s_non').onchange=saveNotify;$('s_twd').onchange=saveNotify;$('s_twe').onchange=saveNotify;
 $('s_nbtn').onclick=()=>{try{AndroidBridge.openNotifSettings()}catch(e){}};
 $('s_test').onclick=()=>{
   try{
