@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -24,8 +25,24 @@ object WeatherAlarm {
 
     fun schedule(ctx: Context) {
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        set(am, ctx, 6, 0, 1001, weekend = false)
-        set(am, ctx, 7, 30, 1002, weekend = true)
+        val sp = ctx.getSharedPreferences("weather", Context.MODE_PRIVATE)
+        if (sp.getBoolean("notify_on", true)) {
+            val wd = sp.getInt("wd_min", 360)
+            val we = sp.getInt("we_min", 450)
+            set(am, ctx, wd / 60, wd % 60, 1001, weekend = false)
+            set(am, ctx, we / 60, we % 60, 1002, weekend = true)
+        } else {
+            cancel(am, ctx, 1001)
+            cancel(am, ctx, 1002)
+        }
+    }
+
+    private fun cancel(am: AlarmManager, ctx: Context, req: Int) {
+        val pi = PendingIntent.getBroadcast(
+            ctx, req, Intent(ctx, AlarmReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        am.cancel(pi)
     }
 
     private fun set(am: AlarmManager, ctx: Context, h: Int, m: Int, req: Int, weekend: Boolean) {
@@ -119,6 +136,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 "&forecast_days=1&models="
         val ok = Collections.synchronizedList(mutableListOf<JSONObject>())
         val metRef = AtomicReference<String?>(null)
+        val kpRef = AtomicReference<String?>(null)
 
         val threads = MODELS.map { m ->
             Thread {
@@ -134,6 +152,11 @@ class AlarmReceiver : BroadcastReceiver() {
                 metRef.set(fetchMet())
             } catch (e: Exception) { }
         })
+        threads.add(Thread {
+            try {
+                kpRef.set(fetchKp())
+            } catch (e: Exception) { }
+        })
         threads.forEach { it.start() }
         // Общий срок ожидания 9 секунд, чтобы не упереться в лимит времени получателя.
         val deadline = System.currentTimeMillis() + 9000
@@ -143,9 +166,11 @@ class AlarmReceiver : BroadcastReceiver() {
         }
 
         val results = synchronized(ok) { ok.toList() }
+        val kpLine = kpRef.get()
+        val withKp = { s: String -> if (kpLine == null) s else s + "\n" + kpLine }
         if (results.isEmpty()) {
             val met = metRef.get()
-            if (met != null) return met
+            if (met != null) return withKp(met)
             throw IllegalStateException("no models")
         }
 
@@ -173,9 +198,82 @@ class AlarmReceiver : BroadcastReceiver() {
             rain >= 0.1 -> ", осадки %.1f мм".format(rain)
             else -> ", без осадков"
         }
-        return "Сейчас %s°, %s%s. Сегодня %s…%s°%s.".format(
-            r(t), desc(code), windTxt, r(tmin), r(tmax), rainTxt
+        return withKp(
+            "Сейчас %s°, %s%s. Сегодня %s…%s°%s.".format(
+                r(t), desc(code), windTxt, r(tmin), r(tmax), rainTxt
+            )
         )
+    }
+
+    // Индекс Kp (NOAA SWPC): текущее значение и максимум на ближайшие сутки.
+    private fun fetchKp(): String? {
+        val arr = JSONArray(httpGet("https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json"))
+        if (arr.length() == 0) return null
+        val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        fmt.timeZone = TimeZone.getTimeZone("UTC")
+        var tIdx = 0
+        var kIdx = 1
+        var start = 0
+        val first = arr.get(0)
+        if (first is JSONArray) {
+            for (c in 0 until first.length()) {
+                val name = first.optString(c).lowercase(Locale.ROOT)
+                if (name == "time_tag") tIdx = c
+                if (name == "kp") kIdx = c
+            }
+            start = 1
+        }
+        val now = System.currentTimeMillis()
+        val slot = 3 * 3600 * 1000L
+        var cur = Double.NaN
+        var mx = Double.NaN
+        for (i in start until arr.length()) {
+            val row = arr.get(i)
+            var ts = ""
+            var kv = Double.NaN
+            if (row is JSONArray) {
+                ts = row.optString(tIdx)
+                kv = row.optString(kIdx).toDoubleOrNull() ?: Double.NaN
+            } else if (row is JSONObject) {
+                ts = row.optString("time_tag")
+                kv = row.optString("kp").toDoubleOrNull() ?: Double.NaN
+            }
+            if (ts.length < 19 || kv.isNaN()) continue
+            val d = fmt.parse(ts.substring(0, 19).replace(' ', 'T')) ?: continue
+            val t = d.time
+            if (t <= now && now < t + slot) cur = kv
+            if (t + slot > now && t < now + 24 * 3600 * 1000L) {
+                if (mx.isNaN() || kv > mx) mx = kv
+            }
+        }
+        val curL = if (cur.isNaN()) 0 else kpLevel(cur)
+        val maxL = if (mx.isNaN()) 0 else kpLevel(mx)
+        val curS = String.format(Locale.US, "%.1f", cur)
+        val maxS = String.format(Locale.US, "%.1f", mx)
+        return when {
+            curL >= 1 -> "🧲 Магнитная буря G" + curL + " (" + kpWord(curL) + "), Kp " + curS +
+                    (if (maxL > curL) ", ожидается до G" + maxL else "")
+            maxL >= 1 -> "🧲 Ожидается магнитная буря G" + maxL + " (Kp до " + maxS + ")"
+            !cur.isNaN() -> "Магнитное поле спокойно (Kp " + curS + ")"
+            else -> null
+        }
+    }
+
+    private fun kpLevel(k: Double): Int = when {
+        k >= 8.99 -> 5
+        k >= 7.99 -> 4
+        k >= 6.99 -> 3
+        k >= 5.99 -> 2
+        k >= 4.99 -> 1
+        else -> 0
+    }
+
+    private fun kpWord(l: Int): String = when (l) {
+        5 -> "экстремальная"
+        4 -> "жёсткая"
+        3 -> "сильная"
+        2 -> "умеренная"
+        else -> "малая"
     }
 
     // Запасной источник: MET Norway (без выбора моделей, одна модель).
