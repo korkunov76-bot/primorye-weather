@@ -50,7 +50,7 @@ td.e{font-size:18px}
 .ctl input{flex:1;accent-color:var(--buoy)}
 button:focus-visible,input:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
 footer{font-size:12px;color:var(--mute);margin-top:8px}
-.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.top{display:flex;justify-content:flex-start;align-items:center;flex-wrap:wrap;gap:14px}
 .camb{background:transparent;color:var(--fog);border:1px solid var(--line);border-radius:20px;padding:8px 16px;font:500 14px Onest,sans-serif;cursor:pointer}
 .camb:hover{border-color:var(--sea)}
 dialog{background:#10303f;color:var(--fog);border:1px solid var(--line);border-radius:14px;padding:18px;width:min(720px,94vw);margin:auto}
@@ -86,7 +86,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 .locs{display:flex;gap:12px;align-self:center}
 .locs button{border-radius:12px;border:1px solid var(--sea);background:transparent;color:var(--fog);font:500 14px Onest,sans-serif;cursor:pointer;padding:10px 14px}
 .locs button:hover{background:var(--sea);color:#06201c}
-#back{position:fixed;top:12px;left:12px;z-index:99;background:var(--buoy);color:#1a0d05;border:0;border-radius:14px;padding:12px 20px;font:700 30px/1 Onest,sans-serif;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.45)}
+#back{background:var(--buoy);color:#1a0d05;border:0;border-radius:12px;padding:4px 18px;font:700 24px/1.25 Onest,sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
 
 @media(max-width:620px){.d{grid-template-columns:70px 30px 1fr 90px}.d .t,.big{display:none}}
 
@@ -101,7 +101,8 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 #sdlg .tabs{margin-bottom:0}
 .setrow label.chk{flex-wrap:nowrap;align-items:flex-start}.setrow label.chk input{flex:none;margin-top:2px}.setrow label.chk span{flex:1;min-width:0}
 #ptr{position:fixed;top:var(--ptrtop,0px);left:50%;transform:translate(-50%,-60px);z-index:200;background:#10303f;color:var(--fog);border:1px solid var(--sea);border-radius:20px;padding:8px 18px;font-size:13px;opacity:0;pointer-events:none;white-space:nowrap}
-.kpbadge{align-self:center;border:1px solid var(--line);border-radius:14px;padding:7px 12px;line-height:1.25;cursor:pointer;min-width:112px}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%}
+.kpbadge{margin-left:auto;border:1px solid var(--line);border-radius:14px;padding:7px 12px;line-height:1.25;cursor:pointer;min-width:112px}
 .kpbadge b{display:block;font-size:17px;font-weight:700}
 .kpbadge small{display:block;color:var(--mute);font-size:12px}
 .mag{margin-top:6px}
@@ -120,19 +121,17 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 </style>
 </head>
 <body>
-<div class="top"><h1 id="placename">Владивосток</h1></div>
+<div class="top"><h1 id="placename">Владивосток</h1><button id="back" onclick="location.href=location.pathname" title="К прогнозу Владивостока" hidden>←</button></div>
 <div class="btns"><button class="camb" id="camb">📷 Камеры онлайн</button><button class="camb" id="setb">⚙️ Настройки приложения</button><button class="camb" id="sysb">📱 Системные настройки</button></div>
-<button id="back" onclick="location.href=location.pathname" title="К прогнозу Владивостока" hidden>←</button>
 <div id="ptr"></div>
 <div id="err"></div>
 <div id="alerts"></div>
 <section class="now">
-  <div class="temp"><div class="bgico" id="bg"></div><span id="t">–</span><sup>°C</sup></div>
+  <div class="trow"><div class="temp"><div class="bgico" id="bg"></div><span id="t">–</span><sup>°C</sup></div><div class="kpbadge" id="kpbadge" hidden></div></div>
   <div class="locs">
     <button data-loc="terney" title="Прогноз для Тернея">Терней</button>
     <button data-loc="trio" title="Прогноз для бухты Триозерье">Триозерье</button>
   </div>
-  <div class="kpbadge" id="kpbadge" hidden></div>
   <div><div class="desc" id="desc">Загрузка…</div>
     <div class="meta"><span>Ощущается <b id="fl">–</b></span><span>Ветер <b id="wd">–</b></span>
     <span>Влажность <b id="hm">–</b></span><span>Давление <b id="pr">–</b></span>
@@ -145,11 +144,11 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
 <div class="note" id="winnote">мм — осадки в окне, м/с — средний ветер, порыв — самый сильный порыв, вл. — влажность</div>
 <h2>Прогноз на 3 дня, каждые 3 часа</h2><div class="days3" id="hours"></div>
 <h2>Прогноз на неделю</h2><div id="days"></div>
+<h2>Магнитные бури (индекс Kp)</h2><div id="malert"></div><div class="mag" id="mag">–</div>
+<div class="note" id="magnote">Kp — планетарный индекс геомагнитной активности, 3-часовые интервалы, время местное (начало интервала). Kp 0–4 — спокойно, 5 — малая буря (G1), 6 — умеренная (G2), 7 — сильная (G3), 8 — жёсткая (G4), 9 — экстремальная (G5). Светлые столбцы с пунктиром — прогноз.</div>
 <h2>Море и прогноз для моряков</h2><div id="salert"></div><div class="sea" id="sea">–</div>
 <div class="scroll"><table id="wavet"></table></div>
 <div class="note">Волна — высота значительной волны (модель Open-Meteo Marine, шаг сетки около 25 км), «откуда» — направление, откуда идёт волна. Температура воды — по той же модели; у берега и в бухтах возможны отличия. Цвет высоты волны: зелёный до 1,5 м, жёлтый от 1,5 м, красный от 2,5 м.</div>
-<h2>Магнитные бури (индекс Kp)</h2><div id="malert"></div><div class="mag" id="mag">–</div>
-<div class="note" id="magnote">Kp — планетарный индекс геомагнитной активности, 3-часовые интервалы, время местное (начало интервала). Kp 0–4 — спокойно, 5 — малая буря (G1), 6 — умеренная (G2), 7 — сильная (G3), 8 — жёсткая (G4), 9 — экстремальная (G5). Светлые столбцы с пунктиром — прогноз.</div>
 <h2>Карта ветра</h2>
 <div id="map"><iframe id="wf" title="Карта ветра Windy" allowfullscreen></iframe></div>
 <div class="note">Модель ECMWF, поверхность: цвет — скорость ветра, белые штрихи — направление. Анимация прогноза на неделю — кнопка ▶ в левом нижнем углу карты.</div>
@@ -179,7 +178,7 @@ dialog::backdrop{background:rgba(5,15,22,.7)}
   <div class="setrow"><div class="tabs"><button id="s_clr">Очистить сохранённые данные</button></div></div>
   <div class="setrow"><div class="tabs"><button id="s_diag">Проверить связь</button></div><div class="note" id="s_diagout"></div></div>
   <div class="note" id="s_note"></div>
-  <div class="note">Версия страницы: 20 · 11.10.2026<span id="s_appver"></span></div>
+  <div class="note">Версия страницы: 21 · 11.10.2026<span id="s_appver"></span></div>
 </dialog>
 
 <script>
@@ -609,16 +608,47 @@ $('wf').src='https://embed.windy.com/embed2.html?lat='+LAT+'&lon='+LON+'&zoom=8&
 // link — страница-источник: всегда доступна кнопкой «Открыть на сайте» под плеером,
 //        если встроенное окно пустое (сайт запретил встраивание) или трансляция недоступна.
 const PATROKHL='https://web-cams.ru/web-kamera-buhta-patrokl-vladivostok/';
+// Прямые потоки Патрокла (ссылки найдены в сетевом журнале страницы web-cams.ru).
+// Если поток не запустился, окно само переключается на страницу камеры (fb).
+const HLS_PATROKL_1='https://hls7.vladlink.ru/live/vlcam_18243/playlist.m3u8';
+const HLS_PATROKL_2='https://hls7.vladlink.ru/live/vlcam_18245/playlist.m3u8';
 const CAMS=[
- {name:'Патрокл · камера 1', type:'iframe', src:PATROKHL, off:-290},
- {name:'Патрокл · камера 2', type:'iframe', src:PATROKHL, off:-575},
+ {name:'Патрокл · камера 1', type:'hls', src:HLS_PATROKL_1, fb:{src:PATROKHL, off:-290}},
+ {name:'Патрокл · камера 2', type:'hls', src:HLS_PATROKL_2, fb:{src:PATROKHL, off:-575}},
  {name:'Золотой мост · панорама', type:'iframe', src:'https://web-cams.ru/web-kamera-zolotoy-most-vladivostok/', off:0},
  {name:'Босфор Восточный',        type:'iframe', src:'https://web-cams.ru/web-kamera-proliv-bosfor-vostochnyy-vladivostok/', off:0}
 ];
-let hls=null;
-function openCam(i){
+let hls=null, camTimer=null;
+function stopCam(){clearTimeout(camTimer);camTimer=null;if(hls){hls.destroy();hls=null}}
+function playHls(i,c,v){
+  const vid=document.createElement('video');vid.controls=true;vid.autoplay=true;vid.muted=true;vid.playsInline=true;v.appendChild(vid);
+  $('cnote').textContent='Подключаюсь к прямому потоку… если не получится, покажу страницу камеры.';
+  let done=false;
+  const fail=why=>{
+    if(done)return; done=true; stopCam(); openCam(i,true);
+    $('cnote').insertAdjacentHTML('afterbegin','Прямой поток недоступен ('+why+'), показана страница камеры. ');
+  };
+  vid.addEventListener('playing',()=>{if(done)return;done=true;clearTimeout(camTimer);$('cnote').textContent='Прямой поток. Если картинка замерзла, закройте окно и откройте камеру снова.'});
+  vid.addEventListener('error',()=>fail('ошибка видео'));
+  camTimer=setTimeout(()=>fail('нет ответа за 12 с'),12000);
+  if(vid.canPlayType('application/vnd.apple.mpegurl')){vid.src=c.src}
+  else{
+    const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13';
+    sc.onload=()=>{
+      if(!window.Hls||!Hls.isSupported()){fail('плеер не поддерживается');return}
+      hls=new Hls();
+      hls.on(Hls.Events.ERROR,(e,d)=>{if(d&&d.fatal)fail('ошибка потока')});
+      hls.loadSource(c.src);hls.attachMedia(vid);
+    };
+    sc.onerror=()=>fail('плеер не загрузился');
+    document.head.appendChild(sc);
+  }
+}
+function openCam(i,forceIframe){
+  stopCam();
   [...$('tabs').children].forEach((b,k)=>b.setAttribute('aria-pressed',k===i));
-  const c=CAMS[i], v=$('view'); v.innerHTML=''; v.classList.remove('cam'); v.style.cssText=''; if(hls){hls.destroy();hls=null}
+  let c=CAMS[i]; const v=$('view'); v.innerHTML=''; v.classList.remove('cam'); v.style.cssText='';
+  if(c.type==='hls'&&forceIframe)c={name:c.name,type:'iframe',src:c.fb.src,off:c.fb.off};
   if(c.type==='iframe'){
     v.classList.add('cam');
     let off=c.off; try{const sv=localStorage.getItem('camoff_'+i); if(sv!=null)off=+sv}catch(e){}
@@ -633,13 +663,8 @@ function openCam(i){
     });
     $('cnote').innerHTML=`Настройте кадр кнопками ▲▼ (запомнится на этом устройстве). Для запуска нажмите ▶ в окне. Если чёрный экран — <a href="${c.src}" target="_blank" rel="noopener" style="color:var(--sea)">открыть на сайте</a>.`;
   }
-  else if(c.type==='hls'){
-    const vid=document.createElement('video');vid.controls=true;vid.autoplay=true;vid.muted=true;vid.playsInline=true;v.appendChild(vid);
-    if(vid.canPlayType('application/vnd.apple.mpegurl'))vid.src=c.src;
-    else{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.13';
-      s.onload=()=>{hls=new Hls();hls.loadSource(c.src);hls.attachMedia(vid)};document.head.appendChild(s)}
-    $('cnote').textContent='';
-  } else {
+  else if(c.type==='hls')playHls(i,c,v);
+  else {
     v.innerHTML=`<a href="${c.src}" target="_blank" rel="noopener">Открыть камеру «${c.name}»</a>`;
     $('cnote').textContent='Трансляция открывается на сайте-источнике. Если не грузится, включите или выключите VPN.';
   }
@@ -648,7 +673,7 @@ $('tabs').innerHTML=CAMS.map((c,i)=>`<button aria-pressed="false" data-i="${i}">
 $('tabs').onclick=e=>{const b=e.target.closest('button');if(b)openCam(+b.dataset.i)};
 $('camb').onclick=()=>{$('dlg').showModal();openCam(0)};
 $('cx').onclick=()=>$('dlg').close();
-$('dlg').addEventListener('close',()=>{$('view').innerHTML='';if(hls){hls.destroy();hls=null}});
+$('dlg').addEventListener('close',()=>{$('view').innerHTML='';stopCam()});
 $('dlg').addEventListener('click',e=>{if(e.target===$('dlg'))$('dlg').close()});
 
 let SOURCE='om'; try{SOURCE=localStorage.getItem('src')==='met'?'met':'om'}catch(e){}
