@@ -85,6 +85,27 @@ class MainActivity : Activity() {
             }
         }
 
+        // Настройки утреннего уведомления: включено ли и во сколько (в минутах от полуночи)
+        @JavascriptInterface
+        fun getNotifyConfig(): String {
+            val sp = getSharedPreferences("weather", MODE_PRIVATE)
+            return JSONObject()
+                .put("on", sp.getBoolean("notify_on", true))
+                .put("wd", sp.getInt("wd_min", 360))
+                .put("we", sp.getInt("we_min", 450))
+                .toString()
+        }
+
+        @JavascriptInterface
+        fun setNotifyConfig(on: Boolean, wd: Int, we: Int) {
+            getSharedPreferences("weather", MODE_PRIVATE).edit()
+                .putBoolean("notify_on", on)
+                .putInt("wd_min", wd.coerceIn(0, 1439))
+                .putInt("we_min", we.coerceIn(0, 1439))
+                .apply()
+            WeatherAlarm.schedule(this@MainActivity)
+        }
+
         // Проверка утреннего уведомления: запускает тот же получатель, что и будильник
         @JavascriptInterface
         fun testNotification() {
