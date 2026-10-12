@@ -1,210 +1,124 @@
 package com.primorye.weather
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.webkit.JavascriptInterface
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.view.ViewGroup
 import android.view.WindowInsets
-import android.webkit.WebViewClient
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
 import android.widget.FrameLayout
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 class MainActivity : Activity() {
+    private lateinit var web: WebView
 
-    companion object {
-        private const val REMOTE_URL = ""
-        private const val LOCAL_URL = "file:///android_asset/forecast.html"
-        private val ALLOWED_HOSTS = setOf(
-            "api.open-meteo.com",
-            "marine-api.open-meteo.com",
-            "api.met.no",
-            "services.swpc.noaa.gov",
-            "kp.gfz-potsdam.de"
-        )
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val bg = Color.parseColor("#0C1A24")
+        val frame = FrameLayout(this)
+        frame.setBackgroundColor(bg)
+        web = WebView(this)
+        web.setBackgroundColor(bg)
+        web.settings.javaScriptEnabled = true
+        web.settings.domStorageEnabled = true
+        web.addJavascriptInterface(Bridge(), "AndroidBridge")
+        frame.addView(web, FrameLayout.LayoutParams(-1, -1))
+        setContentView(frame)
+        frame.setOnApplyWindowInsetsListener { v, ins ->
+            if (Build.VERSION.SDK_INT >= 30) {
+                val i = ins.getInsets(WindowInsets.Type.systemBars())
+                v.setPadding(i.left, i.top, i.right, i.bottom)
+            } else {
+                @Suppress("DEPRECATION")
+                v.setPadding(ins.systemWindowInsetLeft, ins.systemWindowInsetTop,
+                    ins.systemWindowInsetRight, ins.systemWindowInsetBottom)
+            }
+            ins
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
+        WeatherAlarm.schedule(this)
+        web.loadUrl("file:///android_asset/forecast.html")
     }
 
-    private lateinit var web: WebView
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (web.canGoBack()) web.goBack() else @Suppress("DEPRECATION") super.onBackPressed()
+    }
 
     inner class Bridge {
         @JavascriptInterface
-        fun notifEnabled(): Boolean {
-            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            return nm.areNotificationsEnabled()
-        }
+        fun notifEnabled(): Boolean =
+            getSystemService(NotificationManager::class.java).areNotificationsEnabled()
 
         @JavascriptInterface
-        fun exactAlarms(): Boolean {
-            val am = getSystemService(ALARM_SERVICE) as AlarmManager
-            return Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
-        }
+        fun exactAlarms(): Boolean =
+            if (Build.VERSION.SDK_INT >= 31)
+                getSystemService(AlarmManager::class.java).canScheduleExactAlarms() else true
 
         @JavascriptInterface
         fun openNotifSettings() {
-            startActivity(
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            )
+            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
         }
 
         @JavascriptInterface
         fun openAlarmSettings() {
             if (Build.VERSION.SDK_INT >= 31) {
-                startActivity(
-                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
-                )
+                startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:$packageName")))
             }
         }
 
-        // Системные настройки приложения (разрешения, уведомления, батарея)
         @JavascriptInterface
         fun openAppSettings() {
-            startActivity(
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
-            )
-        }
-
-        // Версия приложения (для окна настроек)
-        @JavascriptInterface
-        fun appVersion(): String {
-            return try {
-                packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-        }
-
-        // Настройки утреннего уведомления: включено ли и во сколько (в минутах от полуночи)
-        @JavascriptInterface
-        fun getNotifyConfig(): String {
-            val sp = getSharedPreferences("weather", MODE_PRIVATE)
-            return JSONObject()
-                .put("on", sp.getBoolean("notify_on", true))
-                .put("wd", sp.getInt("wd_min", 360))
-                .put("we", sp.getInt("we_min", 450))
-                .toString()
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:$packageName")))
         }
 
         @JavascriptInterface
-        fun setNotifyConfig(on: Boolean, wd: Int, we: Int) {
-            getSharedPreferences("weather", MODE_PRIVATE).edit()
-                .putBoolean("notify_on", on)
-                .putInt("wd_min", wd.coerceIn(0, 1439))
-                .putInt("we_min", we.coerceIn(0, 1439))
-                .apply()
-            WeatherAlarm.schedule(this@MainActivity)
-        }
+        fun appVersion(): String =
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
-        // Проверка утреннего уведомления: запускает тот же получатель, что и будильник
         @JavascriptInterface
         fun testNotification() {
-            val day = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
-            val weekend = day == java.util.Calendar.SATURDAY || day == java.util.Calendar.SUNDAY
-            sendBroadcast(Intent(this@MainActivity, AlarmReceiver::class.java).putExtra("weekend", weekend))
+            val ctx = applicationContext
+            Thread { try { AlarmReceiver.notifyNow(ctx) } catch (e: Exception) { } }.start()
         }
 
-        // Запрос погоды средствами Android (обходит ограничения WebView).
-        // Разрешены только адреса Open-Meteo по https.
         @JavascriptInterface
-        fun httpGet(id: Int, url: String) {
+        fun getNotifyConfig(): String {
+            val p = WeatherAlarm.prefs(applicationContext)
+            return JSONObject().put("enabled", p.getBoolean("enabled", true))
+                .put("h", p.getInt("h", 7)).put("m", p.getInt("m", 30)).toString()
+        }
+
+        @JavascriptInterface
+        fun setNotifyConfig(enabled: Boolean, h: Int, m: Int) {
+            WeatherAlarm.prefs(applicationContext).edit()
+                .putBoolean("enabled", enabled).putInt("h", h).putInt("m", m).apply()
+            WeatherAlarm.schedule(applicationContext)
+        }
+
+        @JavascriptInterface
+        fun httpGet(url: String, id: Int) {
             Thread {
-                val result: String = try {
-                    val u = URL(url)
-                    if (u.protocol != "https" || u.host !in ALLOWED_HOSTS) {
-                        throw SecurityException("адрес не разрешён")
-                    }
-                    val c = u.openConnection() as HttpURLConnection
-                    c.connectTimeout = 10000
-                    c.readTimeout = 25000
-                    c.setRequestProperty("User-Agent", "PrimoryeWeather/1.0 github.com/korkunov76-bot/primorye-weather")
-                    val code = c.responseCode
-                    val stream = if (code in 200..299) c.inputStream else c.errorStream
-                    val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
-                    c.disconnect()
-                    JSONObject().put("status", code).put("body", body).toString()
-                } catch (e: Exception) {
-                    JSONObject().put("status", 0).put("error", e.toString()).toString()
-                }
-                runOnUiThread {
-                    web.evaluateJavascript("window.__nativeCb($id, ${JSONObject.quote(result)})", null)
-                }
+                var ok = false
+                var out: String
+                try { out = Net.get(url); ok = true } catch (e: Exception) { out = e.toString() }
+                val js = "window.__cb($id,$ok,${JSONObject.quote(out)})"
+                runOnUiThread { web.evaluateJavascript(js, null) }
             }.start()
         }
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        web = WebView(this)
-        web.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            allowFileAccess = true
-            mediaPlaybackRequiresUserGesture = false
-        }
-        web.addJavascriptInterface(Bridge(), "AndroidBridge")
-        web.webViewClient = object : WebViewClient() {
-            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                if (request.isForMainFrame && REMOTE_URL.isNotEmpty()) view.loadUrl(LOCAL_URL)
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                val am = getSystemService(ALARM_SERVICE) as AlarmManager
-                if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
-                    view?.evaluateJavascript(
-                        "if(confirm('Для уведомлений ровно в 6:00/7:30 нужны точные будильники. Включить?')){AndroidBridge.openAlarmSettings()}",
-                        null
-                    )
-                }
-            }
-        }
-        web.loadUrl(if (REMOTE_URL.isNotEmpty()) REMOTE_URL else LOCAL_URL)
-        // Контейнер с отступами под строку состояния и панель навигации,
-        // чтобы заголовок не заходил под часы и кнопки телефона
-        val root = FrameLayout(this)
-        root.setBackgroundColor(0xFF0D2431.toInt())
-        root.addView(
-            web,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-        setContentView(root)
-        root.setOnApplyWindowInsetsListener { v, insets ->
-            if (Build.VERSION.SDK_INT >= 30) {
-                val b = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-                v.setPadding(b.left, b.top, b.right, b.bottom)
-            } else {
-                v.setPadding(
-                    insets.systemWindowInsetLeft,
-                    insets.systemWindowInsetTop,
-                    insets.systemWindowInsetRight,
-                    insets.systemWindowInsetBottom
-                )
-            }
-            insets
-        }
-        root.requestApplyInsets()
-
-        WeatherAlarm.schedule(this)
-        if (Build.VERSION.SDK_INT >= 33) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 }
